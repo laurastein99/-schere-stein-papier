@@ -875,20 +875,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get('room');
 
-  // Check if Vercel proxy has a key, then decide what to show
+  // Show correct screen immediately without waiting for proxy check
+  if (roomId) {
+    showJoinScreen(roomId);
+  } else if (!OPENAI_KEY) {
+    // Might still be overridden below if proxy is configured
+    showApiKeyScreen();
+  }
+
+  // Check proxy in background — if configured, hide API key screen and go to setup
   fetch('/api/config')
     .then(r => r.ok ? r.json() : null)
     .then(data => {
-      if (data && data.configured) useProxy = true;
-    })
-    .catch(() => {})
-    .finally(() => {
-      if (roomId) {
-        showJoinScreen(roomId);
-      } else if (!useProxy && !OPENAI_KEY) {
-        showApiKeyScreen();
+      if (data && data.configured) {
+        useProxy = true;
+        // If we showed the API key screen unnecessarily, go back to setup
+        if (document.getElementById('apikey-screen').style.display !== 'none') {
+          document.getElementById('apikey-screen').style.display = 'none';
+          document.getElementById('setup-screen').style.display = 'block';
+        }
       }
-    });
+    })
+    .catch(() => {});
 });
 
 // ── GAME TYPE ──
