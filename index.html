@@ -1187,8 +1187,7 @@ function startPvpGame(roomData) {
   state.mode = roomData.mode;
   showGameScreen();
 
-  document.getElementById('cam-toggle-row').style.display = 'none';
-  document.getElementById('camera-preview').classList.remove('active');
+  // camera gestures allowed in PvP — keep cam-toggle-row visible
   document.getElementById('game-title-label').textContent = '2P';
 
   const oppName = pvp.opponentName;
@@ -1839,7 +1838,6 @@ let camState = {
 };
 
 function toggleCamera() {
-  if (pvp.active) return;
   camState.on ? stopCamera() : startCamera();
 }
 
@@ -1940,7 +1938,7 @@ function onHandResults(results) {
         countdownEl.textContent = '';
         labelEl.textContent = labels[gesture] + ' ✓';
         resetStable();
-        play(gesture);
+        handleChoice(gesture);
       }
     }, camState.STABLE_MS);
   } else {
