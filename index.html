@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Schere. Stein. Papier.</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   <style>
     :root {
       --bg: #0f1117;
@@ -53,6 +55,44 @@
       padding: 14px 44px; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all .2s;
     }
     .start-btn:hover { background: #5effd4; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(78,204,163,.3); }
+
+    /* PvP name input */
+    .pvp-name-input {
+      width: 100%; background: var(--surface2); border: 1.5px solid var(--surface2);
+      color: var(--text); border-radius: 10px; padding: 12px 14px; font-size: 0.95rem;
+      margin-bottom: 16px; font-family: var(--font); outline: none; transition: border-color .2s;
+    }
+    .pvp-name-input:focus { border-color: var(--accent); }
+    .pvp-name-input::placeholder { color: var(--text-dim); }
+
+    /* ── LOBBY ── */
+    #lobby-screen { display: none; text-align: center; max-width: 440px; width: 100%; }
+    #lobby-screen h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 8px; }
+    #lobby-screen .sub { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 24px; }
+    .lobby-link-box {
+      background: var(--surface2); border-radius: 10px; padding: 14px 16px;
+      font-size: 0.78rem; color: var(--text-dim); word-break: break-all;
+      margin-bottom: 10px; font-family: monospace; text-align: left;
+    }
+    .copy-btn {
+      width: 100%; background: var(--surface); border: 1.5px solid var(--surface2);
+      color: var(--text); padding: 11px 0; border-radius: 10px;
+      font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all .2s; margin-bottom: 24px;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .lobby-waiting {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      color: var(--text-dim); font-size: 0.85rem;
+    }
+    .lobby-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse-dot 1.2s infinite; }
+    @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+    .lobby-back { background: none; border: none; color: var(--text-dim); font-size: 0.82rem; cursor: pointer; margin-top: 20px; text-decoration: underline; display: block; }
+    .lobby-back:hover { color: var(--text); }
+
+    /* ── JOIN ── */
+    #join-screen { display: none; text-align: center; max-width: 440px; width: 100%; }
+    #join-screen h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 8px; }
+    #join-screen .sub { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 28px; }
 
     /* ── GAME LAYOUT ── */
     #game-screen {
@@ -163,6 +203,7 @@
     .result-badge .win { color: var(--accent); background: rgba(78,204,163,.12); }
     .result-badge .lose { color: var(--danger); background: rgba(224,92,122,.12); }
     .result-badge .draw { color: var(--draw); background: rgba(240,192,96,.12); }
+    .result-badge .waiting { color: var(--text-dim); background: rgba(122,128,153,.1); font-size: 0.88rem; font-weight: 600; }
 
     /* Einspruch */
     .einspruch-btn {
@@ -212,6 +253,8 @@
     .choice-btn:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 6px 20px rgba(78,204,163,.2); }
     .choice-btn:hover span { color: var(--accent); }
     .choice-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+    .choice-btn.selected { border-color: var(--accent); background: rgba(78,204,163,.08); }
+    .choice-btn.selected span { color: var(--accent); }
 
     .round-info { text-align: center; color: var(--text-dim); font-size: 0.75rem; }
 
@@ -350,7 +393,6 @@
     }
 
     /* ── CHEAT MODAL ── */
-
     .modal-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,.7); z-index: 100;
@@ -432,7 +474,7 @@
       height: 200px;
       object-fit: cover;
       display: block;
-      transform: scaleX(-1); /* mirror */
+      transform: scaleX(-1);
     }
 
     .camera-overlay {
@@ -468,15 +510,6 @@
       white-space: nowrap;
     }
 
-    .capture-btn {
-      background: var(--accent); color: var(--bg); border: none;
-      padding: 10px 24px; border-radius: 10px;
-      font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all .2s;
-      width: 100%;
-    }
-    .capture-btn:hover { background: #5effd4; }
-    .capture-btn:disabled { opacity: .4; cursor: not-allowed; }
-
     /* ── PAUSE ── */
     .pause-overlay {
       display: none;
@@ -510,22 +543,125 @@
     .pause-action-btn:hover { border-color: var(--text-dim); color: var(--text); }
     .pause-action-btn.muted { color: var(--text-dim); }
     .icon-btn.paused { border-color: var(--accent); color: var(--accent); }
+
+    /* API key screen */
+    #apikey-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .apikey-card { background:var(--surface); border:1px solid var(--surface2); border-radius:20px; padding:40px 32px; max-width:420px; width:100%; text-align:center; }
+    .apikey-card h2 { font-size:1.4rem; margin-bottom:12px; }
+    .apikey-card p { color:var(--text-dim); font-size:0.9rem; margin-bottom:24px; line-height:1.5; }
+    #apikey-input { width:100%; background:var(--surface2); border:1px solid #444; color:var(--text); border-radius:10px; padding:12px 14px; font-size:0.95rem; margin-bottom:14px; box-sizing:border-box; }
+    #apikey-input:focus { outline:none; border-color:var(--accent); }
+    .apikey-btn { width:100%; background:var(--accent); color:#0a0e1a; font-weight:700; border:none; border-radius:10px; padding:13px; font-size:1rem; cursor:pointer; margin-bottom:14px; }
+    .apikey-btn:hover { filter:brightness(1.1); }
+    .apikey-link { color:var(--text-dim); font-size:0.85rem; text-decoration:none; }
+    .apikey-link:hover { color:var(--accent); }
+
+    /* Firebase config screen */
+    #firebase-screen { display:none; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .firebase-card { background:var(--surface); border:1px solid var(--surface2); border-radius:20px; padding:40px 32px; max-width:460px; width:100%; text-align:center; }
+    .firebase-card h2 { font-size:1.3rem; margin-bottom:10px; }
+    .firebase-card p { color:var(--text-dim); font-size:0.88rem; margin-bottom:12px; line-height:1.6; text-align:left; }
+    .firebase-card code { background:var(--surface2); padding:2px 6px; border-radius:4px; font-size:0.8rem; display:inline-block; margin:4px 0; }
+    .firebase-card textarea { width:100%; background:var(--surface2); border:1px solid #444; color:var(--text); border-radius:10px; padding:12px 14px; font-size:0.8rem; margin-bottom:14px; box-sizing:border-box; font-family:monospace; min-height:120px; resize:vertical; }
+    .firebase-card textarea:focus { outline:none; border-color:var(--accent); }
+    .firebase-save-btn { width:100%; background:var(--accent); color:#0a0e1a; font-weight:700; border:none; border-radius:10px; padding:13px; font-size:1rem; cursor:pointer; margin-bottom:12px; }
+    .firebase-save-btn:hover { filter:brightness(1.1); }
+    .firebase-back-link { color:var(--text-dim); font-size:0.85rem; cursor:pointer; text-decoration:underline; background:none; border:none; }
+    .firebase-back-link:hover { color:var(--text); }
+
+    /* PvP disconnected overlay */
+    .disconnected-overlay {
+      display: none; position: absolute; inset: 0;
+      background: rgba(15,17,23,.92); border-radius: 16px;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; z-index: 60; backdrop-filter: blur(4px);
+    }
+    .disconnected-overlay.active { display: flex; }
+    .disconnected-overlay p { color: var(--text-dim); font-size: 0.9rem; }
   </style>
 </head>
 <body>
 
+<!-- ── API KEY SCREEN ── -->
+<div id="apikey-screen" style="display:none">
+  <div class="apikey-card">
+    <h2>🔑 OpenAI API-Key</h2>
+    <p>Gib deinen OpenAI API-Key ein. Er wird nur in deinem Browser gespeichert und nicht weitergegeben.</p>
+    <input type="password" id="apikey-input" placeholder="sk-proj-..." autocomplete="off" />
+    <button class="apikey-btn" onclick="saveApiKey()">Speichern &amp; Starten</button>
+    <a class="apikey-link" href="https://platform.openai.com/api-keys" target="_blank">Key erstellen →</a>
+  </div>
+</div>
+
+<!-- ── FIREBASE CONFIG SCREEN ── -->
+<div id="firebase-screen">
+  <div class="firebase-card">
+    <h2>🔥 Firebase einrichten</h2>
+    <p>Für den Mehrspieler-Modus wird Firebase Realtime Database benötigt.</p>
+    <p>1. Erstelle ein Projekt auf <strong>console.firebase.google.com</strong><br>
+       2. Aktiviere Realtime Database<br>
+       3. Setze die Regeln auf:</p>
+    <code>{ "rules": { "rooms": { "$id": { ".read": true, ".write": true } } } }</code>
+    <p style="margin-top:12px">4. Kopiere deinen Firebase Config JSON hier rein:</p>
+    <textarea id="firebase-config-input" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"https://...-default-rtdb.firebaseio.com","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
+    <button class="firebase-save-btn" onclick="saveFirebaseConfig()">Speichern</button>
+    <button class="firebase-back-link" onclick="backToMenuFromFirebase()">← Zurück ohne Firebase</button>
+  </div>
+</div>
 
 <!-- ── SETUP ── -->
 <div id="setup-screen">
   <h1>Schere. Stein. <span>Papier.</span></h1>
-  <p>Gegen eine KI die dich nicht mag.</p>
-  <div class="mode-label">Modus wählen</div>
+  <p id="setup-subtitle">Gegen eine KI die dich nicht mag.</p>
+
+  <div class="mode-label">Gegner</div>
+  <div class="mode-buttons">
+    <button class="mode-btn active" data-gametype="ai" onclick="selectGameType('ai')">vs KI</button>
+    <button class="mode-btn" data-gametype="pvp" onclick="selectGameType('pvp')">vs Mensch</button>
+  </div>
+
+  <div class="mode-label">Modus</div>
   <div class="mode-buttons">
     <button class="mode-btn" data-mode="3">Best of 3</button>
     <button class="mode-btn active" data-mode="5">Best of 5</button>
     <button class="mode-btn" data-mode="0">Endlos</button>
   </div>
-  <button class="start-btn" onclick="startGame()">Spiel starten →</button>
+
+  <div id="ai-start">
+    <button class="start-btn" onclick="startGame()">Spiel starten →</button>
+  </div>
+
+  <div id="pvp-start" style="display:none">
+    <input type="text" class="pvp-name-input" id="pvp-name-input" placeholder="Dein Name" maxlength="20" />
+    <button class="start-btn" onclick="createPvpRoom()">Raum erstellen →</button>
+    <div style="margin-top:14px">
+      <button class="firebase-back-link" onclick="showFirebaseSetup()">⚙️ Firebase konfigurieren</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── LOBBY ── -->
+<div id="lobby-screen">
+  <h2>Raum erstellt ✓</h2>
+  <p class="sub" style="color:var(--text-dim);font-size:.88rem;margin-bottom:20px">Schicke diesen Link an deinen Gegner:</p>
+  <div class="lobby-link-box" id="lobby-link-display"></div>
+  <button class="copy-btn" onclick="copyRoomLink()" id="copy-btn">📋 Link kopieren</button>
+  <div class="lobby-waiting">
+    <div class="lobby-dot"></div>
+    <span>Warte auf Spieler 2…</span>
+  </div>
+  <button class="lobby-back" onclick="cancelLobby()">← Abbrechen</button>
+</div>
+
+<!-- ── JOIN SCREEN ── -->
+<div id="join-screen">
+  <h2>Spiel beitreten</h2>
+  <p class="sub" style="color:var(--text-dim);font-size:.88rem;margin-bottom:28px">Du wurdest zu einem Spiel eingeladen.</p>
+  <input type="text" class="pvp-name-input" id="join-name-input" placeholder="Dein Name" maxlength="20" />
+  <button class="start-btn" onclick="joinPvpRoom()">Beitreten →</button>
+  <div style="margin-top:14px">
+    <button class="lobby-back" onclick="cancelJoin()">← Zurück</button>
+  </div>
 </div>
 
 <!-- ── GAME ── -->
@@ -534,7 +670,7 @@
   <!-- LEFT: Spielfeld -->
   <div class="game-panel">
     <div class="game-top">
-      <div class="game-title">SSP</div>
+      <div class="game-title" id="game-title-label">SSP</div>
       <div class="top-actions">
         <button class="icon-btn sound-on" id="sound-btn" onclick="toggleSound()" title="Ton an/aus">🔊</button>
         <button class="icon-btn" id="pause-btn" onclick="togglePause()" title="Pause">⏸</button>
@@ -544,13 +680,13 @@
 
     <div class="scoreboard">
       <div class="score-side">
-        <div class="score-name">Du</div>
+        <div class="score-name" id="score-label-you">Du</div>
         <div class="score-number you" id="score-you">0</div>
         <div class="score-dots" id="dots-you"></div>
       </div>
       <div class="score-divider">:</div>
       <div class="score-side">
-        <div class="score-name">KI</div>
+        <div class="score-name" id="score-label-ai">KI</div>
         <div class="score-number ai" id="score-ai">0</div>
         <div class="score-dots" id="dots-ai"></div>
       </div>
@@ -558,12 +694,12 @@
 
     <div class="arena">
       <div class="hand-wrap">
-        <div class="hand-label">Du</div>
+        <div class="hand-label" id="arena-label-you">Du</div>
         <div class="hand-svg" id="hand-you"></div>
       </div>
       <div class="vs-label">VS</div>
       <div class="hand-wrap">
-        <div class="hand-label">KI</div>
+        <div class="hand-label" id="arena-label-ai">KI</div>
         <div class="hand-svg" id="hand-ai"></div>
       </div>
     </div>
@@ -571,21 +707,21 @@
     <div class="result-badge" id="result-badge"></div>
 
     <div class="choices" id="choices-row">
-      <button class="choice-btn" onclick="play('schere')" id="btn-schere">
+      <button class="choice-btn" onclick="handleChoice('schere')" id="btn-schere">
         <div class="choice-hand" id="choice-hand-schere"></div>
         <span>Schere</span>
       </button>
-      <button class="choice-btn" onclick="play('stein')" id="btn-stein">
+      <button class="choice-btn" onclick="handleChoice('stein')" id="btn-stein">
         <div class="choice-hand" id="choice-hand-stein"></div>
         <span>Stein</span>
       </button>
-      <button class="choice-btn" onclick="play('papier')" id="btn-papier">
+      <button class="choice-btn" onclick="handleChoice('papier')" id="btn-papier">
         <div class="choice-hand" id="choice-hand-papier"></div>
         <span>Papier</span>
       </button>
     </div>
 
-    <!-- Camera preview (shown when cam mode active) -->
+    <!-- Camera preview (AI mode only) -->
     <div class="camera-preview" id="camera-preview">
       <div class="video-container">
         <video id="camera-video" autoplay playsinline muted></video>
@@ -607,10 +743,18 @@
       </div>
     </div>
 
-    <!-- Camera toggle switch -->
+    <!-- Camera toggle (AI mode only) -->
     <div class="cam-toggle-row" id="cam-toggle-row" onclick="toggleCamera()">
       <span class="cam-toggle-label">📷 Gesten-Steuerung</span>
       <div class="cam-toggle-track"><div class="cam-toggle-thumb"></div></div>
+    </div>
+
+    <!-- PvP disconnected overlay -->
+    <div class="disconnected-overlay" id="disconnected-overlay">
+      <div class="pause-icon">📡</div>
+      <div class="pause-text">Gegner getrennt</div>
+      <p>Die Verbindung wurde unterbrochen.</p>
+      <button class="pause-resume-btn" onclick="backToMenu()">← Zurück ins Menü</button>
     </div>
 
     <div class="round-info" id="round-info"></div>
@@ -619,10 +763,10 @@
   <!-- RIGHT: Chat -->
   <div class="chat-panel">
     <div class="chat-header">
-      <div class="chat-avatar">KI</div>
+      <div class="chat-avatar" id="chat-avatar">KI</div>
       <div>
-        <div class="chat-name">Dein Gegner</div>
-        <div class="chat-status">Arrogant · Immer online</div>
+        <div class="chat-name" id="chat-opponent-name">Dein Gegner</div>
+        <div class="chat-status" id="chat-opponent-status">Arrogant · Immer online</div>
       </div>
     </div>
     <div class="chat-messages" id="chat-messages">
@@ -645,8 +789,8 @@
   <div class="end-title" id="end-title"></div>
   <div class="end-comment" id="end-comment"></div>
   <div class="end-stats">
-    <div class="stat"><div class="stat-num" id="stat-you">0</div><div class="stat-lbl">Deine Siege</div></div>
-    <div class="stat"><div class="stat-num" id="stat-ai">0</div><div class="stat-lbl">KI-Siege</div></div>
+    <div class="stat"><div class="stat-num" id="stat-you">0</div><div class="stat-lbl" id="stat-lbl-you">Deine Siege</div></div>
+    <div class="stat"><div class="stat-num" id="stat-ai">0</div><div class="stat-lbl" id="stat-lbl-ai">KI-Siege</div></div>
     <div class="stat"><div class="stat-num" id="stat-draws">0</div><div class="stat-lbl">Unentschieden</div></div>
   </div>
   <div id="beweise-section"></div>
@@ -658,6 +802,98 @@
 
 
 <script>
+let OPENAI_KEY = localStorage.getItem('ssp_openai_key') || '';
+
+// ── FIREBASE ──
+let firebaseApp = null;
+let db = null;
+
+function getFirebaseConfig() {
+  const raw = localStorage.getItem('ssp_firebase_config');
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+function initFirebase() {
+  if (db) return true;
+  const cfg = getFirebaseConfig();
+  if (!cfg || !cfg.databaseURL) return false;
+  try {
+    if (!firebaseApp) firebaseApp = firebase.initializeApp(cfg);
+    db = firebase.database();
+    return true;
+  } catch(e) {
+    console.error('Firebase init error', e);
+    return false;
+  }
+}
+
+function saveFirebaseConfig() {
+  const raw = document.getElementById('firebase-config-input').value.trim();
+  try {
+    const cfg = JSON.parse(raw);
+    if (!cfg.databaseURL) { alert('databaseURL fehlt im Config-Objekt.'); return; }
+    localStorage.setItem('ssp_firebase_config', JSON.stringify(cfg));
+    firebaseApp = null; db = null;
+    document.getElementById('firebase-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'block';
+    alert('Firebase konfiguriert ✓');
+  } catch { alert('Ungültiges JSON. Bitte prüfen.'); }
+}
+
+function showFirebaseSetup() {
+  document.getElementById('setup-screen').style.display = 'none';
+  const existing = getFirebaseConfig();
+  if (existing) document.getElementById('firebase-config-input').value = JSON.stringify(existing, null, 2);
+  document.getElementById('firebase-screen').style.display = 'flex';
+}
+
+function backToMenuFromFirebase() {
+  document.getElementById('firebase-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'block';
+}
+
+// ── API KEY SCREEN ──
+function showApiKeyScreen() {
+  document.getElementById('apikey-screen').style.display = 'flex';
+  document.getElementById('setup-screen').style.display = 'none';
+}
+function saveApiKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  if (!key.startsWith('sk-')) { alert('Bitte einen gültigen OpenAI API-Key eingeben (beginnt mit sk-).'); return; }
+  localStorage.setItem('ssp_openai_key', key);
+  OPENAI_KEY = key;
+  document.getElementById('apikey-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'block';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('apikey-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveApiKey(); });
+  document.getElementById('pvp-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') createPvpRoom(); });
+  document.getElementById('join-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') joinPvpRoom(); });
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomId = urlParams.get('room');
+  if (roomId) {
+    showJoinScreen(roomId);
+  } else if (!OPENAI_KEY) {
+    showApiKeyScreen();
+  }
+});
+
+// ── GAME TYPE ──
+let selectedGameType = 'ai';
+
+function selectGameType(type) {
+  selectedGameType = type;
+  document.querySelectorAll('[data-gametype]').forEach(b => {
+    b.classList.toggle('active', b.dataset.gametype === type);
+  });
+  document.getElementById('ai-start').style.display = type === 'ai' ? 'block' : 'none';
+  document.getElementById('pvp-start').style.display = type === 'pvp' ? 'block' : 'none';
+  document.getElementById('setup-subtitle').textContent = type === 'ai'
+    ? 'Gegen eine KI die dich nicht mag.'
+    : 'Gegen einen echten Menschen.';
+}
 
 // ── STATE ──
 let state = {
@@ -668,9 +904,22 @@ let state = {
   chatHistory: [],
 };
 
+// ── PvP STATE ──
+let pvp = {
+  active: false,
+  role: null,
+  roomId: null,
+  myName: '',
+  opponentName: '',
+  roomRef: null,
+  chatRef: null,
+  roomListener: null,
+  chatListener: null,
+  lastRevealKey: null,
+};
+
 // ── SVG HANDS ──
 const HANDS = {
-
   schere: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
     <g fill="currentColor">
       <rect x="28" y="58" width="46" height="50" rx="18"/>
@@ -681,7 +930,6 @@ const HANDS = {
       <rect x="22" y="70" width="34" height="15" rx="7.5" transform="rotate(-6 39 77)"/>
     </g>
   </svg>`,
-
   stein: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
     <g fill="currentColor">
       <rect x="24" y="46" width="54" height="62" rx="20"/>
@@ -692,7 +940,6 @@ const HANDS = {
       <rect x="18" y="64" width="42" height="17" rx="8.5" transform="rotate(-7 39 72)"/>
     </g>
   </svg>`,
-
   papier: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
     <g fill="currentColor">
       <rect x="27" y="58" width="50" height="52" rx="17"/>
@@ -703,7 +950,6 @@ const HANDS = {
       <rect x="31" y="30" width="13" height="48" rx="6.5" transform="rotate(-11 37.5 54)"/>
     </g>
   </svg>`,
-
   frage: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="50" cy="62" r="34" fill="currentColor" opacity=".1"/>
     <circle cx="50" cy="62" r="25" stroke="currentColor" stroke-width="2" opacity=".2"/>
@@ -713,37 +959,62 @@ const HANDS = {
 
 const NAMES = { schere: 'Schere', stein: 'Stein', papier: 'Papier' };
 
-// ── SETUP ──
-document.querySelectorAll('.mode-btn').forEach(btn => {
+// ── MODE BUTTONS ──
+document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.mode = parseInt(btn.dataset.mode);
   });
 });
 
+// ── AI GAME START ──
 function startGame() {
+  pvp.active = false;
+  resetGameState();
+  showGameScreen();
+  document.getElementById('cam-toggle-row').style.display = '';
+  document.getElementById('game-title-label').textContent = 'SSP';
+  setPlayerLabels('Du', 'KI');
+  document.getElementById('chat-avatar').textContent = 'KI';
+  document.getElementById('chat-opponent-name').textContent = 'Dein Gegner';
+  document.getElementById('chat-opponent-status').textContent = 'Arrogant · Immer online';
+  document.getElementById('chat-input').placeholder = 'Antworte der KI…';
+  document.getElementById('stat-lbl-you').textContent = 'Deine Siege';
+  document.getElementById('stat-lbl-ai').textContent = 'KI-Siege';
+  setTimeout(() => addAIMessage('Fang an. Falls du dich traust.'), 600);
+}
+
+function setPlayerLabels(you, opp) {
+  document.getElementById('score-label-you').textContent = you;
+  document.getElementById('score-label-ai').textContent = opp;
+  document.getElementById('arena-label-you').textContent = you;
+  document.getElementById('arena-label-ai').textContent = opp;
+}
+
+function resetGameState() {
   Object.assign(state, {
     scoreYou: 0, scoreAI: 0, draws: 0, rounds: 0,
     cheatLog: [], locked: false, paused: false, falseEinsprueche: 0,
     einspruchMade: false, pendingTimeout: null, pendingComment: null, pendingPlay: null,
     chatHistory: [],
   });
+}
 
-  // Reset screens
-  document.getElementById('setup-screen').style.display = 'none';
-  document.getElementById('end-screen').style.display = 'none';
+function showGameScreen() {
+  ['setup-screen','end-screen','lobby-screen','join-screen'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
   const gs = document.getElementById('game-screen');
   gs.style.display = '';
   gs.className = 'active';
 
-  // Reset pause overlay
   document.getElementById('pause-overlay').classList.remove('active');
+  document.getElementById('disconnected-overlay').classList.remove('active');
   const pauseBtn = document.getElementById('pause-btn');
   if (pauseBtn) { pauseBtn.textContent = '⏸'; pauseBtn.classList.remove('paused'); }
 
-  // Reset camera UI (keep camera running if it was on, just reset choices visibility)
-  if (camState.on) {
+  if (camState.on && !pvp.active) {
     document.getElementById('choices-row').style.display = 'none';
     document.getElementById('cam-toggle-row').classList.add('active');
     resetStable();
@@ -752,29 +1023,328 @@ function startGame() {
     document.getElementById('cam-toggle-row').classList.remove('active');
   }
 
-  // Reset einspruch button and result
   const prevBtn = document.querySelector('.einspruch-btn');
   if (prevBtn) prevBtn.remove();
   document.getElementById('result-badge').innerHTML = '';
-
-  document.getElementById('chat-messages').innerHTML = `
-    <div class="typing-indicator" id="typing-indicator">
-      <span></span><span></span><span></span>
-    </div>`;
+  document.getElementById('chat-messages').innerHTML = `<div class="typing-indicator" id="typing-indicator"><span></span><span></span><span></span></div>`;
 
   setHand('hand-you', 'papier', '#4ecca3');
   setHand('hand-ai', 'papier', '#e05c7a');
-
-  // Populate choice button icons from HANDS object
   ['schere', 'stein', 'papier'].forEach(move => {
     const el = document.getElementById('choice-hand-' + move);
     if (el) el.innerHTML = HANDS[move].replace(/currentColor/g, '#4ecca3');
+    document.getElementById('btn-' + move)?.classList.remove('selected');
   });
 
   updateScore();
   setRoundInfo();
+}
 
-  setTimeout(() => addAIMessage('Fang an. Falls du dich traust.'), 600);
+// ── PvP ──
+function generateRoomId() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+async function createPvpRoom() {
+  const name = document.getElementById('pvp-name-input').value.trim();
+  if (!name) { alert('Bitte gib deinen Namen ein.'); return; }
+  if (!initFirebase()) { showFirebaseSetup(); return; }
+
+  const roomId = generateRoomId();
+  pvp.role = 'p1';
+  pvp.roomId = roomId;
+  pvp.myName = name;
+  pvp.active = true;
+  pvp.lastRevealKey = null;
+
+  await db.ref('rooms/' + roomId).set({
+    mode: state.mode,
+    status: 'lobby',
+    p1: { name, score: 0, connected: true, choice: null },
+    p2: { name: '', score: 0, connected: false, choice: null },
+    draws: 0, rounds: 0, createdAt: Date.now(),
+  });
+
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('lobby-screen').style.display = 'block';
+  const link = window.location.origin + window.location.pathname + '?room=' + roomId;
+  document.getElementById('lobby-link-display').textContent = link;
+
+  pvp.roomRef = db.ref('rooms/' + roomId);
+  pvp.roomListener = pvp.roomRef.on('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+    if (data.status === 'playing' && data.p2 && data.p2.name) {
+      pvp.opponentName = data.p2.name;
+      startPvpGame(data);
+    }
+  });
+}
+
+function copyRoomLink() {
+  const link = document.getElementById('lobby-link-display').textContent;
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ Kopiert!';
+    setTimeout(() => { btn.textContent = '📋 Link kopieren'; }, 2000);
+  });
+}
+
+function cancelLobby() {
+  if (pvp.roomRef && pvp.roomListener) pvp.roomRef.off('value', pvp.roomListener);
+  if (pvp.roomId && db) db.ref('rooms/' + pvp.roomId).remove();
+  resetPvpState();
+  document.getElementById('lobby-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'block';
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
+function showJoinScreen(roomId) {
+  pvp.roomId = roomId;
+  if (!initFirebase()) {
+    document.getElementById('join-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'block';
+    window.history.replaceState({}, '', window.location.pathname);
+    return;
+  }
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('join-screen').style.display = 'block';
+}
+
+function cancelJoin() {
+  resetPvpState();
+  document.getElementById('join-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'block';
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
+async function joinPvpRoom() {
+  const name = document.getElementById('join-name-input').value.trim();
+  if (!name) { alert('Bitte gib deinen Namen ein.'); return; }
+  if (!initFirebase()) { alert('Firebase nicht konfiguriert.'); return; }
+
+  const snap = await db.ref('rooms/' + pvp.roomId).get();
+  if (!snap.exists()) { alert('Raum nicht gefunden. Der Link könnte abgelaufen sein.'); return; }
+
+  const data = snap.val();
+  if (data.status !== 'lobby') { alert('Dieses Spiel hat bereits begonnen oder ist beendet.'); return; }
+
+  pvp.role = 'p2';
+  pvp.myName = name;
+  pvp.opponentName = data.p1.name;
+  pvp.active = true;
+  pvp.lastRevealKey = null;
+  state.mode = data.mode;
+
+  await db.ref('rooms/' + pvp.roomId).update({
+    status: 'playing',
+    'p2/name': name,
+    'p2/connected': true,
+    'p2/score': 0,
+    'p2/choice': null,
+  });
+
+  startPvpGame(data);
+}
+
+function startPvpGame(roomData) {
+  // Detach lobby listener
+  if (pvp.roomRef && pvp.roomListener) {
+    pvp.roomRef.off('value', pvp.roomListener);
+    pvp.roomListener = null;
+  }
+
+  resetGameState();
+  state.mode = roomData.mode;
+  showGameScreen();
+
+  document.getElementById('cam-toggle-row').style.display = 'none';
+  document.getElementById('camera-preview').classList.remove('active');
+  document.getElementById('game-title-label').textContent = '2P';
+
+  const oppName = pvp.opponentName;
+  setPlayerLabels(pvp.myName, oppName);
+  document.getElementById('chat-opponent-name').textContent = oppName;
+  document.getElementById('chat-opponent-status').textContent = 'Online';
+  document.getElementById('chat-input').placeholder = 'Schreib etwas…';
+  document.getElementById('chat-avatar').textContent = oppName.charAt(0).toUpperCase();
+  document.getElementById('stat-lbl-you').textContent = pvp.myName + 's Siege';
+  document.getElementById('stat-lbl-ai').textContent = oppName + 's Siege';
+
+  // Attach game + chat listeners
+  pvp.roomRef = db.ref('rooms/' + pvp.roomId);
+  pvp.roomRef.on('value', onRoomUpdate);
+  pvp.chatRef = db.ref('rooms/' + pvp.roomId + '/chat');
+  pvp.chatRef.on('child_added', onChatMessage);
+
+  // Mark connected + cleanup on disconnect
+  const myPath = pvp.role === 'p1' ? 'p1' : 'p2';
+  db.ref('rooms/' + pvp.roomId + '/' + myPath + '/connected').set(true);
+  db.ref('rooms/' + pvp.roomId + '/' + myPath + '/connected').onDisconnect().set(false);
+
+  setTimeout(() => addSystemMessage('Spiel beginnt! Viel Glück 🎮'), 400);
+}
+
+function onRoomUpdate(snap) {
+  const data = snap.val();
+  if (!data) return;
+
+  const oppRole = pvp.role === 'p1' ? 'p2' : 'p1';
+  if (data[oppRole] && data[oppRole].connected === false && data.status === 'playing') {
+    document.getElementById('disconnected-overlay').classList.add('active');
+    return;
+  }
+
+  if (data.status === 'finished') {
+    const myScore = pvp.role === 'p1' ? data.p1.score : data.p2.score;
+    const oppScore = pvp.role === 'p1' ? data.p2.score : data.p1.score;
+    state.scoreYou = myScore;
+    state.scoreAI = oppScore;
+    state.draws = data.draws || 0;
+    endGamePvp();
+    return;
+  }
+
+  if (data.status !== 'playing') return;
+
+  // Sync scores
+  const myScore = pvp.role === 'p1' ? (data.p1?.score || 0) : (data.p2?.score || 0);
+  const oppScore = pvp.role === 'p1' ? (data.p2?.score || 0) : (data.p1?.score || 0);
+  if (myScore !== state.scoreYou || oppScore !== state.scoreAI) {
+    state.scoreYou = myScore;
+    state.scoreAI = oppScore;
+    state.draws = data.draws || 0;
+    updateScore();
+  }
+
+  const p1c = data.p1?.choice;
+  const p2c = data.p2?.choice;
+  if (!p1c || !p2c) return;
+
+  const revealKey = p1c + '_' + p2c + '_' + (data.rounds || 0);
+  if (pvp.lastRevealKey === revealKey) return;
+  pvp.lastRevealKey = revealKey;
+
+  revealPvpRound(p1c, p2c, data.rounds || 0, data);
+}
+
+function revealPvpRound(p1choice, p2choice, currentRounds, data) {
+  const myChoice = pvp.role === 'p1' ? p1choice : p2choice;
+  const oppChoice = pvp.role === 'p1' ? p2choice : p1choice;
+
+  const aiEl = document.getElementById('hand-ai');
+  aiEl.classList.remove('shake');
+  aiEl.classList.add('reveal');
+  setHand('hand-you', myChoice, '#4ecca3');
+  setHand('hand-ai', oppChoice, '#e05c7a');
+  setTimeout(() => aiEl.classList.remove('reveal'), 400);
+
+  let result;
+  if (myChoice === oppChoice) result = 'draw';
+  else if (beats(myChoice, oppChoice)) result = 'win';
+  else result = 'lose';
+
+  const badge = document.getElementById('result-badge');
+  badge.innerHTML = result === 'win' ? '<span class="win">Du gewinnst die Runde</span>'
+    : result === 'lose' ? '<span class="lose">Gegner gewinnt die Runde</span>'
+    : '<span class="draw">Unentschieden</span>';
+
+  // p1 writes round result
+  if (pvp.role === 'p1') {
+    let p1score = data.p1?.score || 0;
+    let p2score = data.p2?.score || 0;
+    let draws = data.draws || 0;
+    if (p1choice === p2choice) draws++;
+    else if (beats(p1choice, p2choice)) p1score++;
+    else p2score++;
+
+    const newRounds = currentRounds + 1;
+    const needed = state.mode > 0 ? Math.ceil(state.mode / 2) : Infinity;
+    const gameOver = p1score >= needed || p2score >= needed;
+
+    db.ref('rooms/' + pvp.roomId).update({
+      'p1/score': p1score,
+      'p2/score': p2score,
+      draws,
+      rounds: newRounds,
+      'p1/choice': null,
+      'p2/choice': null,
+      status: gameOver ? 'finished' : 'playing',
+    });
+  }
+
+  setTimeout(() => {
+    state.locked = false;
+    disableButtons(false);
+    ['schere','stein','papier'].forEach(m => document.getElementById('btn-' + m)?.classList.remove('selected'));
+    setRoundInfo();
+  }, 2000);
+}
+
+function onChatMessage(snap) {
+  const msg = snap.val();
+  if (!msg || msg.role === pvp.role) return;
+  addOpponentChatMessage(msg.text, msg.senderName);
+}
+
+function addSystemMessage(text) {
+  const msgs = document.getElementById('chat-messages');
+  const typing = document.getElementById('typing-indicator');
+  const el = document.createElement('div');
+  el.style.cssText = 'text-align:center;color:var(--text-dim);font-size:0.72rem;padding:4px 0';
+  el.textContent = text;
+  msgs.insertBefore(el, typing);
+  scrollChat();
+}
+
+function addOpponentChatMessage(text, senderName) {
+  const msgs = document.getElementById('chat-messages');
+  const typing = document.getElementById('typing-indicator');
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.innerHTML = `<div class="msg-bubble">${escapeHtml(text)}</div><div class="msg-time">${senderName} · ${now()}</div>`;
+  msgs.insertBefore(el, typing);
+  scrollChat();
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function teardownPvp() {
+  if (pvp.roomRef) {
+    pvp.roomRef.off('value', onRoomUpdate);
+    if (pvp.roomListener) { pvp.roomRef.off('value', pvp.roomListener); }
+  }
+  if (pvp.chatRef) pvp.chatRef.off('child_added', onChatMessage);
+}
+
+function resetPvpState() {
+  pvp.active = false; pvp.role = null; pvp.roomId = null;
+  pvp.myName = ''; pvp.opponentName = '';
+  pvp.roomRef = null; pvp.chatRef = null;
+  pvp.roomListener = null; pvp.chatListener = null;
+  pvp.lastRevealKey = null;
+}
+
+// ── UNIFIED CHOICE HANDLER ──
+function handleChoice(choice) {
+  if (pvp.active) playPvp(choice);
+  else play(choice);
+}
+
+function playPvp(choice) {
+  if (state.locked || state.paused) return;
+  state.locked = true;
+  disableButtons(true);
+
+  ['schere','stein','papier'].forEach(m => document.getElementById('btn-' + m)?.classList.toggle('selected', m === choice));
+  setHand('hand-you', choice, '#4ecca3');
+  setHandQuestion('hand-ai');
+  document.getElementById('result-badge').innerHTML = '<span class="waiting">Warte auf Gegner…</span>';
+
+  const field = pvp.role === 'p1' ? 'p1/choice' : 'p2/choice';
+  db.ref('rooms/' + pvp.roomId + '/' + field).set(choice);
 }
 
 // ── HANDS ──
@@ -785,8 +1355,7 @@ function setHand(id, move, color) {
 }
 
 function setHandQuestion(id) {
-  const el = document.getElementById(id);
-  el.innerHTML = HANDS.frage.replace(/currentColor/g, '#7a8099');
+  document.getElementById(id).innerHTML = HANDS.frage.replace(/currentColor/g, '#7a8099');
 }
 
 // ── SCORE ──
@@ -816,7 +1385,7 @@ function setRoundInfo() {
   }
 }
 
-// ── GAME ──
+// ── AI GAME LOGIC ──
 function beats(a, b) {
   return (a==='schere'&&b==='papier')||(a==='stein'&&b==='schere')||(a==='papier'&&b==='stein');
 }
@@ -833,12 +1402,9 @@ async function play(choice) {
 
     const aiEl = document.getElementById('hand-ai');
     aiEl.classList.add('shake');
-    // Einspruch-Button vom letzten Zug entfernen
-    const prevBtn = document.querySelector('.einspruch-btn');
-    if (prevBtn) prevBtn.remove();
+    document.querySelector('.einspruch-btn')?.remove();
     document.getElementById('result-badge').innerHTML = '';
 
-    // Cheat logic
     let aiMove = randomMove();
     let didCheat = false;
     if (Math.random() < 0.20) {
@@ -861,11 +1427,8 @@ async function play(choice) {
     else if (result === 'lose') state.scoreAI++;
     else state.draws++;
 
-    // GPT-Kommentar holen, dann TTS & Reveal parallel
     showTyping(true);
     const comment = await getAIComment(choice, aiMove, result, didCheat);
-
-    // TTS laden & Reveal-Animation gleichzeitig starten
     const audioPromise = prepareAudio(comment);
 
     aiEl.classList.remove('shake');
@@ -877,7 +1440,6 @@ async function play(choice) {
     const resultLabel = result === 'win' ? '<span class="win">Du gewinnst die Runde</span>'
       : result === 'lose' ? '<span class="lose">KI gewinnt die Runde</span>'
       : '<span class="draw">Unentschieden</span>';
-    // Einspruch-Button immer anzeigen (außer bei Unentschieden)
     const einspruchHtml = result !== 'draw'
       ? `<button class="einspruch-btn" onclick="einspruch()">⚖️ Einspruch!</button>` : '';
     badge.innerHTML = resultLabel + einspruchHtml;
@@ -889,16 +1451,13 @@ async function play(choice) {
     updateScore();
     setRoundInfo();
 
-    // Kommentar + Audio sofort zeigen
     const playFn = await audioPromise;
     showTyping(false);
     addAIMessage(comment);
     if (playFn) playFn();
 
     const needed = state.mode > 0 ? Math.ceil(state.mode / 2) : Infinity;
-    const gameOver = state.scoreYou >= needed || state.scoreAI >= needed;
-
-    if (gameOver) {
+    if (state.scoreYou >= needed || state.scoreAI >= needed) {
       setTimeout(() => endGame(), 2400);
       return;
     }
@@ -925,27 +1484,26 @@ function disableButtons(dis) {
 }
 
 function togglePause() {
+  if (pvp.active) return;
   state.paused = !state.paused;
   const overlay = document.getElementById('pause-overlay');
   const btn = document.getElementById('pause-btn');
   if (state.paused) {
     overlay.classList.add('active');
-    btn.textContent = '▶';
-    btn.classList.add('paused');
-    if (currentAudio) { currentAudio.pause(); }
+    btn.textContent = '▶'; btn.classList.add('paused');
+    if (currentAudio) currentAudio.pause();
     if (camState.on) resetStable();
   } else {
     overlay.classList.remove('active');
-    btn.textContent = '⏸';
-    btn.classList.remove('paused');
+    btn.textContent = '⏸'; btn.classList.remove('paused');
   }
 }
 
 // ── GPT ──
 async function callGPT(messages, maxTokens = 80) {
-  const res = await fetch('/api/chat', {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: maxTokens, temperature: 0.92 }),
   });
   const data = await res.json();
@@ -961,14 +1519,8 @@ async function getAIComment(you, ai, result, didCheat) {
   const cheatNote = didCheat ? ` Ich habe geschummelt (von ${NAMES[ai]} auf ${NAMES[ai]} gewechselt), aber gebe das nicht zu.` : '';
   const prompt = `Runde ${state.rounds}. Du hast ${result==='lose'?'gewonnen':result==='win'?'verloren':'unentschieden gespielt'}. Mensch: ${NAMES[you]}, KI: ${NAMES[ai]}.${cheatNote}${milestone?' Wichtiger Moment.':''} Stand: ${state.scoreYou}:${state.scoreAI}.`;
   try {
-    const reply = await callGPT([
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: prompt }
-    ]);
-    if (reply) {
-      state.chatHistory.push({ role: 'assistant', content: reply });
-      return reply;
-    }
+    const reply = await callGPT([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }]);
+    if (reply) { state.chatHistory.push({ role: 'assistant', content: reply }); return reply; }
   } catch {}
   return fallback(result);
 }
@@ -993,11 +1545,8 @@ function addAIMessage(text) {
 function replaceLastAIMessage(text) {
   const msgs = document.getElementById('chat-messages');
   const bubbles = msgs.querySelectorAll('.msg.ai');
-  if (bubbles.length > 0) {
-    bubbles[bubbles.length - 1].querySelector('.msg-bubble').textContent = text;
-  } else {
-    addAIMessage(text);
-  }
+  if (bubbles.length > 0) bubbles[bubbles.length - 1].querySelector('.msg-bubble').textContent = text;
+  else addAIMessage(text);
 }
 
 function addUserMessage(text) {
@@ -1005,7 +1554,7 @@ function addUserMessage(text) {
   const typing = document.getElementById('typing-indicator');
   const el = document.createElement('div');
   el.className = 'msg user';
-  el.innerHTML = `<div class="msg-bubble">${text}</div><div class="msg-time">${now()}</div>`;
+  el.innerHTML = `<div class="msg-bubble">${escapeHtml(text)}</div><div class="msg-time">${now()}</div>`;
   msgs.insertBefore(el, typing);
   scrollChat();
 }
@@ -1033,11 +1582,18 @@ async function sendUserMessage() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text) return;
-
   input.value = '';
+
+  if (pvp.active) {
+    addUserMessage(text);
+    db.ref('rooms/' + pvp.roomId + '/chat').push({
+      role: pvp.role, senderName: pvp.myName, text, time: Date.now(),
+    });
+    return;
+  }
+
   document.getElementById('chat-send').disabled = true;
   addUserMessage(text);
-
   state.chatHistory.push({ role: 'user', content: text });
 
   showTyping(true);
@@ -1057,7 +1613,6 @@ async function sendUserMessage() {
     showTyping(false);
     addAIMessage('Ich antworte nicht auf alles.');
   }
-
   document.getElementById('chat-send').disabled = false;
 }
 
@@ -1077,13 +1632,12 @@ function toggleSound() {
 
 let currentAudio = null;
 
-// Gibt eine play()-Funktion zurück sobald Audio bereit ist
 async function prepareAudio(text) {
   if (!state.soundOn) return null;
   try {
-    const res = await fetch('/api/speech', {
+    const res = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'tts-1', voice: 'onyx', input: text, speed: 1.0, response_format: 'mp3' }),
     });
     if (!res.ok) throw new Error('TTS ' + res.status);
@@ -1101,29 +1655,21 @@ async function prepareAudio(text) {
   }
 }
 
-function speak(text) {
-  prepareAudio(text).then(play => play && play());
-}
+function speak(text) { prepareAudio(text).then(fn => fn && fn()); }
 
-// ── CHEAT MODAL ──
+// ── CHEAT / EINSPRUCH ──
 async function einspruch() {
-  const btn = document.querySelector('.einspruch-btn');
-  if (btn) btn.remove();
-  // Runden-Kommentar unterdrücken
+  document.querySelector('.einspruch-btn')?.remove();
   state.einspruchMade = true;
   clearTimeout(state.pendingTimeout);
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
 
   const cheated = state.lastCheated;
-
   if (cheated) {
     if (state.lastResult === 'lose') { state.scoreAI--; state.scoreYou++; }
     updateScore();
     const c = state.cheatLog[state.cheatLog.length - 1];
-    // Sofort weiterspielen erlauben
-    state.locked = false;
-    disableButtons(false);
-    // GPT + Audio im Hintergrund
+    state.locked = false; disableButtons(false);
     const prompt = `Du wurdest beim Schummeln erwischt. Reagiere auf Deutsch arrogant, kurz. Max 10 Wörter.`;
     callGPT([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }]).then(reply => {
       const text = reply || 'Einmaliger Fehler.';
@@ -1133,45 +1679,27 @@ async function einspruch() {
   } else {
     state.falseEinsprueche++;
     const isWarning = state.falseEinsprueche === 1;
-
     if (!isWarning) {
-      // Ab dem 2. falschen Einspruch: Strafpunkt
       if (state.lastResult === 'win') { state.scoreYou--; state.scoreAI++; }
       else if (state.lastResult === 'lose') { state.scoreAI++; }
       updateScore();
     }
-
-    // Sofort weiterspielen erlauben
-    state.locked = false;
-    disableButtons(false);
-
+    state.locked = false; disableButtons(false);
     const prompt = isWarning
       ? `Der Spieler hat dich fälschlicherweise beschuldigt zu schummeln. Verwarnung — diesmal kein Strafpunkt, aber drohe auf Deutsch arrogant. Max 10 Wörter.`
       : `Der Spieler beschuldigt dich schon wieder fälschlicherweise. Diesmal gibt es einen Strafpunkt. Reagiere herablassend auf Deutsch. Max 10 Wörter.`;
-
     callGPT([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }]).then(reply => {
       const text = reply || (isWarning ? 'Letzte Warnung.' : 'Strafpunkt. Lerneffekt null.');
-      const prefix = isWarning ? '⚠️ Verwarnung — ' : '❌ Strafpunkt — ';
-      replaceLastAIMessage(prefix + text);
+      replaceLastAIMessage((isWarning ? '⚠️ Verwarnung — ' : '❌ Strafpunkt — ') + text);
       prepareAudio(text).then(fn => fn && fn());
     });
   }
 }
 
-
 function renderBeweise() {
   const el = document.getElementById('beweise-section');
   if (state.cheatLog.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = `
-    <div class="beweise-section">
-      <h3>🕵️ Beweise gegen die KI</h3>
-      ${state.cheatLog.map(c => `
-        <div class="beweis-item">
-          Runde ${c.round}: Du spieltest <strong>${NAMES[c.you]}</strong> —
-          KI wechselte heimlich von <strong>${NAMES[c.aiOriginal]}</strong>
-          zu <strong>${NAMES[c.aiFinal]}</strong>.
-        </div>`).join('')}
-    </div>`;
+  el.innerHTML = `<div class="beweise-section"><h3>🕵️ Beweise gegen die KI</h3>${state.cheatLog.map(c => `<div class="beweis-item">Runde ${c.round}: Du spieltest <strong>${NAMES[c.you]}</strong> — KI wechselte heimlich von <strong>${NAMES[c.aiOriginal]}</strong> zu <strong>${NAMES[c.aiFinal]}</strong>.</div>`).join('')}</div>`;
 }
 
 // ── END ──
@@ -1187,18 +1715,38 @@ async function endGame() {
   document.getElementById('stat-you').textContent = state.scoreYou;
   document.getElementById('stat-ai').textContent = state.scoreAI;
   document.getElementById('stat-draws').textContent = state.draws;
-
+  document.getElementById('rematch-btn').style.display = '';
   if (youWon) spawnConfetti();
 
   const comment = await getEndComment(youWon);
   document.getElementById('end-comment').textContent = comment;
   speak(comment);
-
-  document.getElementById('rematch-btn').textContent = youWon
-    ? 'Rematch? (Das war Glück.) →'
-    : 'Noch eine Chance? →';
-
+  document.getElementById('rematch-btn').textContent = youWon ? 'Rematch? (Das war Glück.) →' : 'Noch eine Chance? →';
   renderBeweise();
+}
+
+function endGamePvp() {
+  teardownPvp();
+  document.getElementById('game-screen').className = '';
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('end-screen').style.display = 'block';
+
+  const youWon = state.scoreYou > state.scoreAI;
+  const oppName = pvp.opponentName;
+  document.getElementById('end-title').textContent = youWon ? 'Du hast gewonnen.' : oppName + ' gewinnt.';
+  document.getElementById('end-title').className = 'end-title ' + (youWon ? 'win' : 'lose');
+  document.getElementById('end-icon').textContent = youWon ? '🏆' : '🎮';
+  document.getElementById('stat-you').textContent = state.scoreYou;
+  document.getElementById('stat-ai').textContent = state.scoreAI;
+  document.getElementById('stat-draws').textContent = state.draws;
+  document.getElementById('end-comment').textContent = youWon ? 'Gut gespielt!' : oppName + ' hat heute gewonnen. Nächstes Mal!';
+  document.getElementById('beweise-section').innerHTML = '';
+  document.getElementById('rematch-btn').style.display = 'none';
+  if (youWon) spawnConfetti();
+
+  if (db && pvp.roomId) db.ref('rooms/' + pvp.roomId).remove();
+  window.history.replaceState({}, '', window.location.pathname);
+  resetPvpState();
 }
 
 async function getEndComment(youWon) {
@@ -1206,10 +1754,8 @@ async function getEndComment(youWon) {
     ? `Du hast das Spiel verloren (${state.scoreYou}:${state.scoreAI}). Kurze, trockene Ausrede auf Deutsch. Max 15 Wörter.`
     : `Du hast gewonnen (${state.scoreAI}:${state.scoreYou}). Kurzes herablassendes Kommentar auf Deutsch. Max 15 Wörter.`;
   try {
-    return await callGPT([
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: prompt }
-    ]) || (youWon ? 'Ich war abgelenkt.' : 'Ich könnte das im Schlaf.');
+    return await callGPT([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }])
+      || (youWon ? 'Ich war abgelenkt.' : 'Ich könnte das im Schlaf.');
   } catch { return youWon ? 'Zufallstreffer.' : 'War absehbar.'; }
 }
 
@@ -1219,13 +1765,18 @@ function rematch() {
 }
 
 function backToMenu() {
-  // Stop any running audio
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-  // Unpause if needed
   if (state.paused) {
     state.paused = false;
     document.getElementById('pause-overlay').classList.remove('active');
   }
+  if (pvp.active) {
+    teardownPvp();
+    if (db && pvp.roomId) db.ref('rooms/' + pvp.roomId).remove();
+    window.history.replaceState({}, '', window.location.pathname);
+    resetPvpState();
+  }
+  if (camState.on) stopCamera();
   document.getElementById('game-screen').className = '';
   document.getElementById('end-screen').style.display = 'none';
   document.getElementById('setup-screen').style.display = 'block';
@@ -1247,23 +1798,14 @@ function spawnConfetti() {
 
 // ── CAMERA / MEDIAPIPE ──
 let camState = {
-  on: false,
-  stream: null,
-  hands: null,
-  mpCamera: null,
-  lastGesture: null,
-  stableGesture: null,
-  stableStart: null,
-  stableTimeout: null,
-  STABLE_MS: 1200,
+  on: false, stream: null, hands: null, mpCamera: null,
+  lastGesture: null, stableGesture: null, stableStart: null,
+  stableTimeout: null, STABLE_MS: 1200,
 };
 
 function toggleCamera() {
-  if (camState.on) {
-    stopCamera();
-  } else {
-    startCamera();
-  }
+  if (pvp.active) return;
+  camState.on ? stopCamera() : startCamera();
 }
 
 async function startCamera() {
@@ -1271,15 +1813,11 @@ async function startCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
     camState.stream = stream;
     camState.on = true;
-
     const video = document.getElementById('camera-video');
     video.srcObject = stream;
-
     document.getElementById('camera-preview').classList.add('active');
     document.getElementById('cam-toggle-row').classList.add('active');
     document.getElementById('choices-row').style.display = 'none';
-
-    // Load MediaPipe lazily
     await loadMediaPipe();
     initMediaPipeHands(video);
   } catch (e) {
@@ -1291,57 +1829,34 @@ async function startCamera() {
 }
 
 function stopCamera() {
-  if (camState.stream) {
-    camState.stream.getTracks().forEach(t => t.stop());
-    camState.stream = null;
-  }
-  if (camState.mpCamera) {
-    camState.mpCamera.stop();
-    camState.mpCamera = null;
-  }
-  camState.on = false;
-  camState.lastGesture = null;
-  camState.stableGesture = null;
-  camState.stableStart = null;
-  clearTimeout(camState.stableTimeout);
-  clearInterval(camState.stableInterval);
-
+  if (camState.stream) { camState.stream.getTracks().forEach(t => t.stop()); camState.stream = null; }
+  if (camState.mpCamera) { camState.mpCamera.stop(); camState.mpCamera = null; }
+  camState.on = false; camState.lastGesture = null; camState.stableGesture = null; camState.stableStart = null;
+  clearTimeout(camState.stableTimeout); clearInterval(camState.stableInterval);
   document.getElementById('camera-preview').classList.remove('active');
   document.getElementById('cam-toggle-row').classList.remove('active');
   document.getElementById('choices-row').style.display = '';
-
   document.getElementById('camera-video').srcObject = null;
 }
 
 function loadMediaPipe() {
   return new Promise((resolve, reject) => {
     if (window.Hands) { resolve(); return; }
-    // load hands.js
     const s1 = document.createElement('script');
     s1.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
     s1.crossOrigin = 'anonymous';
-    s1.onload = resolve;
-    s1.onerror = reject;
+    s1.onload = resolve; s1.onerror = reject;
     document.head.appendChild(s1);
   });
 }
 
 function initMediaPipeHands(videoEl) {
-  const hands = new Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
-  });
-  hands.setOptions({
-    maxNumHands: 1,
-    modelComplexity: 0,
-    minDetectionConfidence: 0.6,
-    minTrackingConfidence: 0.5,
-  });
+  const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+  hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
   hands.onResults(onHandResults);
   camState.hands = hands;
 
-  // Drive MediaPipe manually using the already-acquired stream — avoids a second getUserMedia prompt
-  let rafId = null;
-  let sending = false;
+  let rafId = null, sending = false;
   async function processFrame() {
     if (!camState.on) return;
     if (camState.hands && !state.locked && !sending && videoEl.readyState >= 2) {
@@ -1360,8 +1875,7 @@ function onHandResults(results) {
   const countdownEl = document.getElementById('countdown-display');
 
   if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-    camState.lastGesture = null;
-    resetStable();
+    camState.lastGesture = null; resetStable();
     if (!state.locked) labelEl.textContent = 'Hand zeigen…';
     return;
   }
@@ -1369,24 +1883,15 @@ function onHandResults(results) {
   const landmarks = results.multiHandLandmarks[0];
   const gesture = detectGesture(landmarks);
   camState.lastGesture = gesture;
-
   if (state.locked) { resetStable(); return; }
-
-  if (!gesture) {
-    resetStable();
-    labelEl.textContent = 'Geste unklar…';
-    return;
-  }
+  if (!gesture) { resetStable(); labelEl.textContent = 'Geste unklar…'; return; }
 
   const labels = { schere: '✌️ Schere', stein: '✊ Stein', papier: '🖐️ Papier' };
 
   if (gesture !== camState.stableGesture) {
-    // Neue Geste — Timer neu starten
     resetStable();
     camState.stableGesture = gesture;
     camState.stableStart = Date.now();
-
-    // Fortschrittsanzeige
     let progress = 0;
     const step = 100 / (camState.STABLE_MS / 50);
     camState.stableInterval = setInterval(() => {
@@ -1394,7 +1899,6 @@ function onHandResults(results) {
       const pct = Math.round(progress);
       countdownEl.textContent = pct < 100 ? `${labels[gesture]} ${'▓'.repeat(Math.floor(pct/20))}${'░'.repeat(5-Math.floor(pct/20))}` : '';
     }, 50);
-
     camState.stableTimeout = setTimeout(() => {
       clearInterval(camState.stableInterval);
       if (!state.locked && camState.stableGesture === gesture) {
@@ -1410,42 +1914,21 @@ function onHandResults(results) {
 }
 
 function resetStable() {
-  clearTimeout(camState.stableTimeout);
-  clearInterval(camState.stableInterval);
-  camState.stableGesture = null;
-  camState.stableStart = null;
+  clearTimeout(camState.stableTimeout); clearInterval(camState.stableInterval);
+  camState.stableGesture = null; camState.stableStart = null;
   const cdEl = document.getElementById('countdown-display');
   if (cdEl) cdEl.textContent = '';
 }
 
 function detectGesture(landmarks) {
   const isExtended = (tipIdx, pipIdx) => landmarks[tipIdx].y < landmarks[pipIdx].y;
-
-  const index  = isExtended(8,  6);
-  const middle = isExtended(12, 10);
-  const ring   = isExtended(16, 14);
-  const pinky  = isExtended(20, 18);
-
+  const index = isExtended(8, 6), middle = isExtended(12, 10), ring = isExtended(16, 14), pinky = isExtended(20, 18);
   const extendedCount = [index, middle, ring, pinky].filter(Boolean).length;
-
   if (extendedCount === 0) return 'stein';
   if (extendedCount >= 4) return 'papier';
   if (index && middle && !ring && !pinky) return 'schere';
   return null;
 }
-
-
-// Stop camera when leaving game screen
-const _origBackToMenu = backToMenu;
-backToMenu = function() {
-  if (camState.on) stopCamera();
-  _origBackToMenu();
-};
-const _origEndGame = endGame;
-endGame = async function() {
-  if (camState.on) stopCamera();
-  await _origEndGame();
-};
 </script>
 </body>
 </html>
