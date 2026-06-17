@@ -1657,10 +1657,10 @@ let currentAudio = null;
 async function prepareAudio(text) {
   if (!state.soundOn) return null;
   try {
-    const url = useProxy ? '/api/speech' : 'https://api.openai.com/v1/audio/speech';
+    const ttsUrl = useProxy ? '/api/speech' : 'https://api.openai.com/v1/audio/speech';
     const headers = { 'Content-Type': 'application/json' };
     if (!useProxy) headers['Authorization'] = `Bearer ${OPENAI_KEY}`;
-    const res = await fetch(url, {
+    const res = await fetch(ttsUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({ model: 'tts-1', voice: 'onyx', input: text, speed: 1.0, response_format: 'mp3' }),
