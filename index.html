@@ -803,6 +803,7 @@
 
 <script>
 let OPENAI_KEY = localStorage.getItem('ssp_openai_key') || '';
+let useProxy = false; // set to true on Vercel where OPENAI_KEY env var is configured
 
 // ── FIREBASE ──
 let firebaseApp = null;
@@ -871,12 +872,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pvp-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') createPvpRoom(); });
   document.getElementById('join-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') joinPvpRoom(); });
 
+  // Check if Vercel proxy has a key configured
+  fetch('/api/config').then(r => r.ok ? r.json() : null).then(data => {
+    if (data && data.configured) useProxy = true;
+  }).catch(() => {});
+
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get('room');
   if (roomId) {
     showJoinScreen(roomId);
   } else if (!OPENAI_KEY) {
-    showApiKeyScreen();
+    // Check proxy before showing key screen (slight delay for fetch)
+    setTimeout(() => { if (!useProxy) showApiKeyScreen(); }, 300);
   }
 });
 
@@ -1501,9 +1508,12 @@ function togglePause() {
 
 // ── GPT ──
 async function callGPT(messages, maxTokens = 80) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const url = useProxy ? '/api/chat' : 'https://api.openai.com/v1/chat/completions';
+  const headers = { 'Content-Type': 'application/json' };
+  if (!useProxy) headers['Authorization'] = `Bearer ${OPENAI_KEY}`;
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: maxTokens, temperature: 0.92 }),
   });
   const data = await res.json();
@@ -1635,9 +1645,12 @@ let currentAudio = null;
 async function prepareAudio(text) {
   if (!state.soundOn) return null;
   try {
-    const res = await fetch('https://api.openai.com/v1/audio/speech', {
+    const url = useProxy ? '/api/speech' : 'https://api.openai.com/v1/audio/speech';
+    const headers = { 'Content-Type': 'application/json' };
+    if (!useProxy) headers['Authorization'] = `Bearer ${OPENAI_KEY}`;
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ model: 'tts-1', voice: 'onyx', input: text, speed: 1.0, response_format: 'mp3' }),
     });
     if (!res.ok) throw new Error('TTS ' + res.status);
