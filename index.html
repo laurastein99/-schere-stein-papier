@@ -510,32 +510,10 @@
     .pause-action-btn:hover { border-color: var(--text-dim); color: var(--text); }
     .pause-action-btn.muted { color: var(--text-dim); }
     .icon-btn.paused { border-color: var(--accent); color: var(--accent); }
-
-    /* API key screen */
-    #apikey-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
-    .apikey-card { background:var(--surface); border:1px solid var(--surface2); border-radius:20px; padding:40px 32px; max-width:420px; width:100%; text-align:center; }
-    .apikey-card h2 { font-size:1.4rem; margin-bottom:12px; }
-    .apikey-card p { color:var(--text-dim); font-size:0.9rem; margin-bottom:24px; line-height:1.5; }
-    #apikey-input { width:100%; background:var(--surface2); border:1px solid #444; color:var(--text); border-radius:10px; padding:12px 14px; font-size:0.95rem; margin-bottom:14px; box-sizing:border-box; }
-    #apikey-input:focus { outline:none; border-color:var(--accent); }
-    .apikey-btn { width:100%; background:var(--accent); color:#0a0e1a; font-weight:700; border:none; border-radius:10px; padding:13px; font-size:1rem; cursor:pointer; margin-bottom:14px; }
-    .apikey-btn:hover { filter:brightness(1.1); }
-    .apikey-link { color:var(--text-dim); font-size:0.85rem; text-decoration:none; }
-    .apikey-link:hover { color:var(--accent); }
   </style>
 </head>
 <body>
 
-<!-- ── API KEY SCREEN ── -->
-<div id="apikey-screen" style="display:none">
-  <div class="apikey-card">
-    <h2>🔑 OpenAI API-Key</h2>
-    <p>Gib deinen OpenAI API-Key ein. Er wird nur in deinem Browser gespeichert und nicht weitergegeben.</p>
-    <input type="password" id="apikey-input" placeholder="sk-proj-..." autocomplete="off" />
-    <button class="apikey-btn" onclick="saveApiKey()">Speichern &amp; Starten</button>
-    <a class="apikey-link" href="https://platform.openai.com/api-keys" target="_blank">Key erstellen →</a>
-  </div>
-</div>
 
 <!-- ── SETUP ── -->
 <div id="setup-screen">
@@ -680,27 +658,6 @@
 
 
 <script>
-let OPENAI_KEY = localStorage.getItem('ssp_openai_key') || '';
-
-// ── API KEY SCREEN ──
-function showApiKeyScreen() {
-  document.getElementById('apikey-screen').style.display = 'flex';
-  document.getElementById('setup-screen').style.display = 'none';
-}
-function saveApiKey() {
-  const key = document.getElementById('apikey-input').value.trim();
-  if (!key.startsWith('sk-')) { alert('Bitte einen gültigen OpenAI API-Key eingeben (beginnt mit sk-).'); return; }
-  localStorage.setItem('ssp_openai_key', key);
-  OPENAI_KEY = key;
-  document.getElementById('apikey-screen').style.display = 'none';
-  document.getElementById('setup-screen').style.display = 'block';
-}
-// Allow Enter key in the input
-document.addEventListener('DOMContentLoaded', () => {
-  const inp = document.getElementById('apikey-input');
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveApiKey(); });
-  if (!OPENAI_KEY) showApiKeyScreen();
-});
 
 // ── STATE ──
 let state = {
@@ -714,83 +671,37 @@ let state = {
 // ── SVG HANDS ──
 const HANDS = {
 
-  // ✌️ Schere — zwei dicke Finger im klaren V
-  schere: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Faust-Sockel -->
-    <rect x="12" y="68" width="76" height="50" rx="24" fill="currentColor"/>
-    <!-- Daumen -->
-    <ellipse cx="9" cy="84" rx="10" ry="15" fill="currentColor" transform="rotate(-18 9 84)"/>
-    <!-- Ring+Kleinfinger (eingerollt, kleiner Buckel) -->
-    <rect x="66" y="55" width="24" height="27" rx="12" fill="currentColor"/>
-    <!-- Zeigefinger — fett, links geneigt -->
-    <rect x="10" y="6" width="28" height="66" rx="14" fill="currentColor" transform="rotate(-13 24 39)"/>
-    <!-- Mittelfinger — fett, rechts geneigt -->
-    <rect x="60" y="2" width="28" height="68" rx="14" fill="currentColor" transform="rotate(13 74 36)"/>
-    <!-- 3D-Glanz Zeigefinger -->
-    <ellipse cx="20" cy="22" rx="7" ry="22" fill="rgba(255,255,255,.28)" transform="rotate(-13 20 22)"/>
-    <!-- 3D-Glanz Mittelfinger -->
-    <ellipse cx="68" cy="18" rx="7" ry="24" fill="rgba(255,255,255,.28)" transform="rotate(13 68 18)"/>
-    <!-- Schatten-Gap zwischen den Fingern -->
-    <ellipse cx="50" cy="42" rx="13" ry="32" fill="rgba(0,0,0,.22)"/>
-    <!-- Nägel -->
-    <rect x="11" y="8" width="18" height="10" rx="5" fill="rgba(255,255,255,.36)" transform="rotate(-13 20 13)"/>
-    <rect x="66" y="4" width="18" height="10" rx="5" fill="rgba(255,255,255,.36)" transform="rotate(13 75 9)"/>
-    <!-- Palm-Glanz -->
-    <path d="M20 84 Q50 78 80 84" stroke="rgba(255,255,255,.22)" stroke-width="4" fill="none" stroke-linecap="round"/>
+  schere: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+    <g fill="currentColor">
+      <rect x="28" y="58" width="46" height="50" rx="18"/>
+      <rect x="30" y="16" width="13" height="56" rx="6.5" transform="rotate(-16 36.5 44)"/>
+      <rect x="58" y="14" width="13" height="58" rx="6.5" transform="rotate(16 64.5 43)"/>
+      <rect x="60" y="54" width="13" height="16" rx="6.5"/>
+      <rect x="48" y="52" width="13" height="16" rx="6.5"/>
+      <rect x="22" y="70" width="34" height="15" rx="7.5" transform="rotate(-6 39 77)"/>
+    </g>
   </svg>`,
 
-  // ✊ Stein — dicke Faust mit 4 runden Knöcheln
-  stein: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Knöchel-Buckel (4 dicke Pillen) -->
-    <rect x="12" y="28" width="18" height="32" rx="9" fill="currentColor"/>
-    <rect x="32" y="18" width="20" height="36" rx="10" fill="currentColor"/>
-    <rect x="54" y="20" width="20" height="34" rx="10" fill="currentColor"/>
-    <rect x="74" y="28" width="17" height="30" rx="8.5" fill="currentColor"/>
-    <!-- Haupt-Faustkörper -->
-    <rect x="8" y="52" width="84" height="60" rx="26" fill="currentColor"/>
-    <!-- Daumen -->
-    <ellipse cx="6" cy="74" rx="9" ry="15" fill="currentColor" transform="rotate(-12 6 74)"/>
-    <!-- 3D-Highlights auf jedem Knöchel -->
-    <ellipse cx="21" cy="36" rx="6" ry="12" fill="rgba(255,255,255,.32)"/>
-    <ellipse cx="42" cy="26" rx="7" ry="13" fill="rgba(255,255,255,.32)"/>
-    <ellipse cx="64" cy="28" rx="7" ry="12" fill="rgba(255,255,255,.32)"/>
-    <ellipse cx="82" cy="37" rx="6" ry="10" fill="rgba(255,255,255,.32)"/>
-    <!-- Palm-Glanz (breite Ellipse) -->
-    <ellipse cx="50" cy="74" rx="32" ry="9" fill="rgba(255,255,255,.15)"/>
-    <!-- Daumen-Falte -->
-    <path d="M8 64 Q13 56 22 54" stroke="rgba(0,0,0,.22)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  stein: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+    <g fill="currentColor">
+      <rect x="24" y="46" width="54" height="62" rx="20"/>
+      <rect x="28" y="40" width="13" height="16" rx="6.5"/>
+      <rect x="40" y="38" width="13" height="18" rx="6.5"/>
+      <rect x="52" y="40" width="13" height="16" rx="6.5"/>
+      <rect x="63" y="43" width="12" height="14" rx="6"/>
+      <rect x="18" y="64" width="42" height="17" rx="8.5" transform="rotate(-7 39 72)"/>
+    </g>
   </svg>`,
 
-  // 🖐️ Papier — 5 dicke gespreizten Finger
-  papier: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Kleinfinger (kürzester, rechts) -->
-    <rect x="74" y="20" width="18" height="54" rx="9" fill="currentColor"/>
-    <!-- Ringfinger -->
-    <rect x="54" y="10" width="20" height="62" rx="10" fill="currentColor"/>
-    <!-- Mittelfinger (längster) -->
-    <rect x="32" y="4" width="22" height="70" rx="11" fill="currentColor"/>
-    <!-- Zeigefinger -->
-    <rect x="12" y="10" width="20" height="64" rx="10" fill="currentColor"/>
-    <!-- Daumen (schräg links) -->
-    <ellipse cx="8" cy="76" rx="10" ry="17" fill="currentColor" transform="rotate(-28 8 76)"/>
-    <!-- Handfläche -->
-    <rect x="8" y="66" width="84" height="52" rx="26" fill="currentColor"/>
-    <!-- 3D-Glanz auf jedem Finger -->
-    <ellipse cx="22" cy="24" rx="6" ry="22" fill="rgba(255,255,255,.28)"/>
-    <ellipse cx="43" cy="16" rx="6.5" ry="24" fill="rgba(255,255,255,.28)"/>
-    <ellipse cx="64" cy="22" rx="6" ry="22" fill="rgba(255,255,255,.28)"/>
-    <ellipse cx="83" cy="32" rx="5" ry="18" fill="rgba(255,255,255,.28)"/>
-    <!-- Fingernägel -->
-    <rect x="14" y="12" width="16" height="9" rx="4.5" fill="rgba(255,255,255,.4)"/>
-    <rect x="34" y="6"  width="18" height="9" rx="4.5" fill="rgba(255,255,255,.4)"/>
-    <rect x="56" y="12" width="16" height="9" rx="4.5" fill="rgba(255,255,255,.4)"/>
-    <rect x="76" y="22" width="14" height="8" rx="4"   fill="rgba(255,255,255,.4)"/>
-    <!-- Finger-Trennlinien -->
-    <line x1="32" y1="24" x2="32" y2="68" stroke="rgba(0,0,0,.2)" stroke-width="3.5" stroke-linecap="round"/>
-    <line x1="54" y1="20" x2="54" y2="68" stroke="rgba(0,0,0,.2)" stroke-width="3.5" stroke-linecap="round"/>
-    <line x1="74" y1="28" x2="74" y2="68" stroke="rgba(0,0,0,.2)" stroke-width="3" stroke-linecap="round"/>
-    <!-- Palm-Glanz -->
-    <path d="M16 80 Q50 72 84 80" stroke="rgba(255,255,255,.22)" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  papier: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+    <g fill="currentColor">
+      <rect x="27" y="58" width="50" height="52" rx="17"/>
+      <rect x="13" y="60" width="14" height="34" rx="7" transform="rotate(-38 20 77)"/>
+      <rect x="67" y="40" width="12" height="38" rx="6" transform="rotate(20 73 59)"/>
+      <rect x="57" y="30" width="13" height="48" rx="6.5" transform="rotate(9 63.5 54)"/>
+      <rect x="44" y="26" width="13" height="52" rx="6.5" transform="rotate(1 50.5 52)"/>
+      <rect x="31" y="30" width="13" height="48" rx="6.5" transform="rotate(-11 37.5 54)"/>
+    </g>
   </svg>`,
 
   frage: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1032,9 +943,9 @@ function togglePause() {
 
 // ── GPT ──
 async function callGPT(messages, maxTokens = 80) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch('/api/chat', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: maxTokens, temperature: 0.92 }),
   });
   const data = await res.json();
@@ -1170,9 +1081,9 @@ let currentAudio = null;
 async function prepareAudio(text) {
   if (!state.soundOn) return null;
   try {
-    const res = await fetch('https://api.openai.com/v1/audio/speech', {
+    const res = await fetch('/api/speech', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'tts-1', voice: 'onyx', input: text, speed: 1.0, response_format: 'mp3' }),
     });
     if (!res.ok) throw new Error('TTS ' + res.status);
