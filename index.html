@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Schere. Stein. Papier.</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --accent: #4ecca3;
+      --text: #e8eaf0;
+      --text-dim: #7a8099;
+      --danger: #e05c7a;
+      --draw: #f0c060;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* ── SETUP ── */
+    #setup-screen { text-align: center; max-width: 440px; width: 100%; }
+
+    #setup-screen h1 {
+      font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 6px;
+    }
+    #setup-screen h1 span { color: var(--accent); }
+    #setup-screen p { color: var(--text-dim); margin-bottom: 36px; font-size: 0.95rem; }
+
+    .mode-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 10px; }
+    .mode-buttons { display: flex; gap: 10px; justify-content: center; margin-bottom: 28px; }
+    .mode-btn {
+      background: var(--surface); border: 2px solid var(--surface2); color: var(--text-dim);
+      padding: 10px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all .2s;
+    }
+    .mode-btn:hover, .mode-btn.active { border-color: var(--accent); color: var(--accent); background: #1a2e28; }
+
+    .start-btn {
+      background: var(--accent); color: var(--bg); border: none;
+      padding: 14px 44px; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all .2s;
+    }
+    .start-btn:hover { background: #5effd4; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(78,204,163,.3); }
+
+    /* ── GAME LAYOUT ── */
+    #game-screen {
+      display: none;
+      width: 100%;
+      max-width: 900px;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    #game-screen.active {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+    }
+
+    @media (max-width: 720px) {
+      #game-screen.active { grid-template-columns: 1fr; }
+    }
+
+    /* ── LEFT PANEL (game) ── */
+    .game-panel {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    .game-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .game-title { font-size: 0.7rem; font-weight: 700; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
+
+    .top-actions { display: flex; gap: 8px; align-items: center; }
+
+    .icon-btn {
+      background: transparent; border: 1.5px solid var(--surface2);
+      color: var(--text-dim); width: 34px; height: 34px; border-radius: 8px;
+      font-size: 0.85rem; cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon-btn:hover { border-color: var(--text-dim); color: var(--text); }
+    .icon-btn.danger { border-color: var(--danger); color: var(--danger); opacity: .7; }
+    .icon-btn.danger:hover { opacity: 1; background: rgba(224,92,122,.1); }
+    .icon-btn.danger.active { opacity: 1; }
+    .icon-btn.sound-on { border-color: var(--accent); color: var(--accent); }
+
+    /* Score */
+    .scoreboard {
+      display: flex; align-items: center; justify-content: center; gap: 0;
+      background: var(--bg); border-radius: 14px; overflow: hidden;
+    }
+    .score-side { flex: 1; text-align: center; padding: 14px 8px; }
+    .score-name { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 4px; }
+    .score-number { font-size: 2.6rem; font-weight: 800; line-height: 1; }
+    .score-number.you { color: var(--accent); }
+    .score-number.ai { color: var(--danger); }
+    .score-dots { display: flex; gap: 5px; justify-content: center; margin-top: 6px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--surface2); transition: background .3s; }
+    .dot.fy { background: var(--accent); }
+    .dot.fa { background: var(--danger); }
+    .score-divider { color: var(--surface2); font-weight: 700; font-size: 1rem; padding: 0 4px; }
+
+    /* Arena */
+    .arena {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      padding: 8px 0;
+    }
+    .hand-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .hand-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); }
+    .hand-svg {
+      width: 96px; height: 116px;
+      display: flex; align-items: center; justify-content: center;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,.35));
+    }
+    .hand-svg svg { width: 100%; height: 100%; }
+    .hand-svg.shake svg { animation: shake .45s ease-in-out infinite; }
+    .hand-svg.reveal svg { animation: pop .3s cubic-bezier(.34,1.56,.64,1) forwards; }
+
+    @keyframes shake {
+      0%,100% { transform: rotate(0) translateY(0); }
+      25% { transform: rotate(-9deg) translateY(-3px); }
+      75% { transform: rotate(9deg) translateY(-3px); }
+    }
+    @keyframes pop {
+      0% { transform: scale(.4) rotate(-20deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0); opacity: 1; }
+    }
+
+    .vs-label {
+      font-size: 0.72rem; font-weight: 800; letter-spacing: 3px;
+      color: var(--surface2); text-transform: uppercase;
+      padding: 6px 10px; border-radius: 6px;
+      background: var(--bg);
+    }
+
+    /* Result */
+    .result-badge { text-align: center; min-height: 36px; }
+    .result-badge span {
+      font-size: 1rem; font-weight: 800; letter-spacing: .5px;
+      padding: 6px 20px; border-radius: 8px; display: inline-block;
+    }
+    .result-badge .win { color: var(--accent); background: rgba(78,204,163,.12); }
+    .result-badge .lose { color: var(--danger); background: rgba(224,92,122,.12); }
+    .result-badge .draw { color: var(--draw); background: rgba(240,192,96,.12); }
+
+    /* Einspruch */
+    .einspruch-btn {
+      display: block; width: 100%; margin-top: 10px;
+      background: rgba(224,92,122,.08);
+      border: 1.5px solid rgba(224,92,122,.4);
+      color: var(--danger); padding: 9px 0; border-radius: 10px;
+      font-size: 0.82rem; font-weight: 700; cursor: pointer;
+      letter-spacing: .3px;
+      animation: einspruch-pulse 1.2s ease-in-out 3;
+      transition: all .2s;
+    }
+    .einspruch-btn:hover { background: rgba(224,92,122,.16); border-color: var(--danger); }
+    @keyframes einspruch-pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(224,92,122,.4); }
+      50%      { box-shadow: 0 0 0 7px rgba(224,92,122,0); }
+    }
+
+    /* Beweise im End-Screen */
+    .beweise-section {
+      background: rgba(224,92,122,.07);
+      border: 1px solid rgba(224,92,122,.25);
+      border-radius: 14px; padding: 18px 20px;
+      margin-bottom: 24px; text-align: left;
+    }
+    .beweise-section h3 {
+      color: var(--danger); font-size: 0.8rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px;
+    }
+    .beweis-item {
+      font-size: 0.82rem; line-height: 1.6; color: var(--text-dim);
+      padding: 8px 0; border-bottom: 1px solid rgba(224,92,122,.12);
+    }
+    .beweis-item:last-child { border-bottom: none; }
+    .beweis-item strong { color: var(--text); }
+
+    /* Choice buttons */
+    .choices { display: flex; gap: 10px; justify-content: center; }
+    .choice-btn {
+      background: var(--bg); border: 2px solid var(--surface2); border-radius: 14px;
+      padding: 14px 12px; cursor: pointer; transition: all .2s;
+      display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1;
+    }
+    .choice-hand { width: 44px; height: 53px; }
+    .choice-hand svg { width: 100%; height: 100%; }
+    .choice-btn span { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+    .choice-btn:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 6px 20px rgba(78,204,163,.2); }
+    .choice-btn:hover span { color: var(--accent); }
+    .choice-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .round-info { text-align: center; color: var(--text-dim); font-size: 0.75rem; }
+
+    /* ── RIGHT PANEL (chat) ── */
+    .chat-panel {
+      background: var(--surface);
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 560px;
+    }
+
+    .chat-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--surface2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chat-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--danger); display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 800; color: white; flex-shrink: 0;
+    }
+
+    .chat-name { font-size: 0.85rem; font-weight: 600; }
+    .chat-status { font-size: 0.7rem; color: var(--text-dim); }
+
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 2px; }
+
+    .msg { display: flex; flex-direction: column; max-width: 85%; }
+    .msg.ai { align-self: flex-start; }
+    .msg.user { align-self: flex-end; }
+
+    .msg-bubble {
+      padding: 10px 14px; border-radius: 14px; font-size: 0.85rem; line-height: 1.5;
+    }
+    .msg.ai .msg-bubble {
+      background: var(--bg); color: var(--text);
+      border-bottom-left-radius: 4px;
+    }
+    .msg.user .msg-bubble {
+      background: var(--accent); color: var(--bg); font-weight: 500;
+      border-bottom-right-radius: 4px;
+    }
+    .msg-time {
+      font-size: 0.62rem; color: var(--text-dim); margin-top: 3px;
+      padding: 0 4px;
+    }
+    .msg.user .msg-time { text-align: right; }
+
+    .typing-indicator {
+      display: none;
+      align-self: flex-start;
+      background: var(--bg);
+      border-radius: 14px;
+      border-bottom-left-radius: 4px;
+      padding: 12px 16px;
+    }
+    .typing-indicator.visible { display: flex; gap: 4px; align-items: center; }
+    .typing-indicator span {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim);
+      animation: bounce .9s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: .15s; }
+    .typing-indicator span:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+    .chat-input-wrap {
+      padding: 12px 16px;
+      border-top: 1px solid var(--surface2);
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1; background: var(--bg); border: 1.5px solid var(--surface2);
+      border-radius: 10px; padding: 10px 14px; color: var(--text);
+      font-family: var(--font); font-size: 0.85rem; outline: none; resize: none;
+      transition: border-color .2s;
+    }
+    .chat-input:focus { border-color: var(--accent); }
+    .chat-input::placeholder { color: var(--text-dim); }
+
+    .chat-send {
+      background: var(--accent); color: var(--bg); border: none;
+      width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
+      font-size: 1rem; transition: all .2s; flex-shrink: 0; align-self: flex-end;
+    }
+    .chat-send:hover { background: #5effd4; }
+    .chat-send:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── END SCREEN ── */
+    #end-screen { display: none; text-align: center; max-width: 460px; width: 100%; }
+
+    .end-icon { font-size: 3.5rem; margin-bottom: 12px; }
+    .end-title { font-size: 2rem; font-weight: 800; margin-bottom: 6px; }
+    .end-title.win { color: var(--accent); }
+    .end-title.lose { color: var(--danger); }
+    .end-comment { color: var(--text-dim); font-style: italic; font-size: 0.9rem; margin-bottom: 28px; line-height: 1.6; }
+
+    .end-stats {
+      background: var(--surface); border-radius: 16px; padding: 18px;
+      margin-bottom: 28px; display: flex; justify-content: center; gap: 36px;
+    }
+    .stat-num { font-size: 1.8rem; font-weight: 800; color: var(--accent); }
+    .stat-lbl { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+
+    .end-btns { display: flex; gap: 10px; justify-content: center; }
+    .rematch-btn {
+      background: var(--accent); color: var(--bg); border: none;
+      padding: 13px 36px; border-radius: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all .2s;
+    }
+    .rematch-btn:hover { background: #5effd4; transform: translateY(-2px); }
+    .back-btn {
+      background: transparent; border: 2px solid var(--surface2); color: var(--text-dim);
+      padding: 11px 22px; border-radius: 12px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all .2s;
+    }
+    .back-btn:hover { border-color: var(--text-dim); color: var(--text); }
+
+    /* ── CONFETTI ── */
+    .confetti-piece {
+      position: fixed; pointer-events: none; z-index: 999;
+      border-radius: 2px; animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall {
+      0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ── CHEAT MODAL ── */
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.7); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface); border: 2px solid var(--danger);
+      border-radius: 18px; padding: 28px; max-width: 380px; width: 90%; text-align: center;
+    }
+    .modal-box h2 { color: var(--danger); font-size: 1.2rem; margin-bottom: 14px; }
+    .modal-box p { color: var(--text-dim); line-height: 1.6; margin-bottom: 20px; font-size: 0.88rem; }
+    #cheat-log { color: var(--text); font-style: italic; font-size: 0.85rem; }
+    #cheat-log p { margin-bottom: 8px; }
+    .modal-close {
+      background: var(--danger); color: white; border: none;
+      padding: 10px 28px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.88rem;
+    }
+
+    /* ── CAMERA ── */
+    .cam-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 0 2px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .cam-toggle-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      transition: color .2s;
+    }
+    .cam-toggle-track {
+      width: 42px; height: 22px;
+      background: var(--surface2);
+      border-radius: 11px;
+      position: relative;
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+    .cam-toggle-thumb {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: transform .2s, background .2s;
+    }
+    .cam-toggle-row.active .cam-toggle-track { background: var(--accent); }
+    .cam-toggle-row.active .cam-toggle-thumb { background: var(--bg); transform: translateX(20px); }
+    .cam-toggle-row.active .cam-toggle-label { color: var(--accent); }
+
+    .camera-preview {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .camera-preview.active { display: flex; }
+
+    .video-container {
+      position: relative;
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--accent);
+      background: #000;
+      max-height: 200px;
+    }
+
+    #camera-video {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      display: block;
+      transform: scaleX(-1); /* mirror */
+    }
+
+    .camera-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .countdown-display {
+      font-size: 4rem;
+      font-weight: 900;
+      color: white;
+      text-shadow: 0 0 20px rgba(0,0,0,.8);
+      display: none;
+    }
+    .countdown-display.visible { display: block; }
+
+    .gesture-label {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.65);
+      color: white;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .capture-btn {
+      background: var(--accent); color: var(--bg); border: none;
+      padding: 10px 24px; border-radius: 10px;
+      font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all .2s;
+      width: 100%;
+    }
+    .capture-btn:hover { background: #5effd4; }
+    .capture-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── PAUSE ── */
+    .pause-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(15,17,23,.88);
+      border-radius: 16px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 50;
+      backdrop-filter: blur(4px);
+    }
+    .pause-overlay.active { display: flex; }
+    .pause-icon { font-size: 2.8rem; line-height: 1; }
+    .pause-text { font-size: 1rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; }
+    .pause-resume-btn {
+      background: var(--accent); color: var(--bg);
+      border: none; padding: 10px 28px; border-radius: 10px;
+      font-size: 0.9rem; font-weight: 700; cursor: pointer;
+      margin-top: 4px; transition: background .15s;
+    }
+    .pause-resume-btn:hover { background: #5effd4; }
+    .pause-actions { display: flex; gap: 10px; margin-top: 4px; }
+    .pause-action-btn {
+      background: var(--surface2); color: var(--text);
+      border: 1px solid var(--surface2); padding: 8px 18px; border-radius: 10px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .pause-action-btn:hover { border-color: var(--text-dim); color: var(--text); }
+    .pause-action-btn.muted { color: var(--text-dim); }
+    .icon-btn.paused { border-color: var(--accent); color: var(--accent); }
+
+    /* API key screen */
+    #apikey-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .apikey-card { background:var(--surface); border:1px solid var(--surface2); border-radius:20px; padding:40px 32px; max-width:420px; width:100%; text-align:center; }
+    .apikey-card h2 { font-size:1.4rem; margin-bottom:12px; }
+    .apikey-card p { color:var(--text-dim); font-size:0.9rem; margin-bottom:24px; line-height:1.5; }
+    #apikey-input { width:100%; background:var(--surface2); border:1px solid #444; color:var(--text); border-radius:10px; padding:12px 14px; font-size:0.95rem; margin-bottom:14px; box-sizing:border-box; }
+    #apikey-input:focus { outline:none; border-color:var(--accent); }
+    .apikey-btn { width:100%; background:var(--accent); color:#0a0e1a; font-weight:700; border:none; border-radius:10px; padding:13px; font-size:1rem; cursor:pointer; margin-bottom:14px; }
+    .apikey-btn:hover { filter:brightness(1.1); }
+    .apikey-link { color:var(--text-dim); font-size:0.85rem; text-decoration:none; }
+    .apikey-link:hover { color:var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- ── API KEY SCREEN ── -->
+<div id="apikey-screen" style="display:none">
+  <div class="apikey-card">
+    <h2>🔑 OpenAI API-Key</h2>
+    <p>Gib deinen OpenAI API-Key ein. Er wird nur in deinem Browser gespeichert und nicht weitergegeben.</p>
+    <input type="password" id="apikey-input" placeholder="sk-proj-..." autocomplete="off" />
+    <button class="apikey-btn" onclick="saveApiKey()">Speichern &amp; Starten</button>
+    <a class="apikey-link" href="https://platform.openai.com/api-keys" target="_blank">Key erstellen →</a>
+  </div>
+</div>
+
+<!-- ── SETUP ── -->
+<div id="setup-screen">
+  <h1>Schere. Stein. <span>Papier.</span></h1>
+  <p>Gegen eine KI die dich nicht mag.</p>
+  <div class="mode-label">Modus wählen</div>
+  <div class="mode-buttons">
+    <button class="mode-btn" data-mode="3">Best of 3</button>
+    <button class="mode-btn active" data-mode="5">Best of 5</button>
+    <button class="mode-btn" data-mode="0">Endlos</button>
+  </div>
+  <button class="start-btn" onclick="startGame()">Spiel starten →</button>
+</div>
+
+<!-- ── GAME ── -->
+<div id="game-screen">
+
+  <!-- LEFT: Spielfeld -->
+  <div class="game-panel">
+    <div class="game-top">
+      <div class="game-title">SSP</div>
+      <div class="top-actions">
+        <button class="icon-btn sound-on" id="sound-btn" onclick="toggleSound()" title="Ton an/aus">🔊</button>
+        <button class="icon-btn" id="pause-btn" onclick="togglePause()" title="Pause">⏸</button>
+        <button class="icon-btn" onclick="backToMenu()" title="Zurück ins Hauptmenü" style="font-size:0.75rem;letter-spacing:.5px;width:auto;padding:0 10px;">← Menü</button>
+      </div>
+    </div>
+
+    <div class="scoreboard">
+      <div class="score-side">
+        <div class="score-name">Du</div>
+        <div class="score-number you" id="score-you">0</div>
+        <div class="score-dots" id="dots-you"></div>
+      </div>
+      <div class="score-divider">:</div>
+      <div class="score-side">
+        <div class="score-name">KI</div>
+        <div class="score-number ai" id="score-ai">0</div>
+        <div class="score-dots" id="dots-ai"></div>
+      </div>
+    </div>
+
+    <div class="arena">
+      <div class="hand-wrap">
+        <div class="hand-label">Du</div>
+        <div class="hand-svg" id="hand-you"></div>
+      </div>
+      <div class="vs-label">VS</div>
+      <div class="hand-wrap">
+        <div class="hand-label">KI</div>
+        <div class="hand-svg" id="hand-ai"></div>
+      </div>
+    </div>
+
+    <div class="result-badge" id="result-badge"></div>
+
+    <div class="choices" id="choices-row">
+      <button class="choice-btn" onclick="play('schere')" id="btn-schere">
+        <div class="choice-hand" id="choice-hand-schere"></div>
+        <span>Schere</span>
+      </button>
+      <button class="choice-btn" onclick="play('stein')" id="btn-stein">
+        <div class="choice-hand" id="choice-hand-stein"></div>
+        <span>Stein</span>
+      </button>
+      <button class="choice-btn" onclick="play('papier')" id="btn-papier">
+        <div class="choice-hand" id="choice-hand-papier"></div>
+        <span>Papier</span>
+      </button>
+    </div>
+
+    <!-- Camera preview (shown when cam mode active) -->
+    <div class="camera-preview" id="camera-preview">
+      <div class="video-container">
+        <video id="camera-video" autoplay playsinline muted></video>
+        <div class="camera-overlay">
+          <div class="countdown-display" id="countdown-display"></div>
+          <div class="gesture-label" id="gesture-label">Warte auf Hand…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause overlay -->
+    <div class="pause-overlay" id="pause-overlay">
+      <div class="pause-icon">⏸</div>
+      <div class="pause-text">Pausiert</div>
+      <button class="pause-resume-btn" onclick="togglePause()">▶ Weiter</button>
+      <div class="pause-actions">
+        <button class="pause-action-btn" id="pause-sound-btn" onclick="toggleSound()">🔊 Ton</button>
+        <button class="pause-action-btn" onclick="backToMenu()">← Menü</button>
+      </div>
+    </div>
+
+    <!-- Camera toggle switch -->
+    <div class="cam-toggle-row" id="cam-toggle-row" onclick="toggleCamera()">
+      <span class="cam-toggle-label">📷 Gesten-Steuerung</span>
+      <div class="cam-toggle-track"><div class="cam-toggle-thumb"></div></div>
+    </div>
+
+    <div class="round-info" id="round-info"></div>
+  </div>
+
+  <!-- RIGHT: Chat -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <div class="chat-avatar">KI</div>
+      <div>
+        <div class="chat-name">Dein Gegner</div>
+        <div class="chat-status">Arrogant · Immer online</div>
+      </div>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="typing-indicator" id="typing-indicator">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+    <div class="chat-input-wrap">
+      <textarea class="chat-input" id="chat-input" placeholder="Antworte der KI…" rows="1"
+        onkeydown="handleChatKey(event)"></textarea>
+      <button class="chat-send" id="chat-send" onclick="sendUserMessage()">↑</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── END ── -->
+<div id="end-screen">
+  <div class="end-icon" id="end-icon"></div>
+  <div class="end-title" id="end-title"></div>
+  <div class="end-comment" id="end-comment"></div>
+  <div class="end-stats">
+    <div class="stat"><div class="stat-num" id="stat-you">0</div><div class="stat-lbl">Deine Siege</div></div>
+    <div class="stat"><div class="stat-num" id="stat-ai">0</div><div class="stat-lbl">KI-Siege</div></div>
+    <div class="stat"><div class="stat-num" id="stat-draws">0</div><div class="stat-lbl">Unentschieden</div></div>
+  </div>
+  <div id="beweise-section"></div>
+  <div class="end-btns">
+    <button class="rematch-btn" onclick="rematch()" id="rematch-btn">Nochmal →</button>
+    <button class="back-btn" onclick="backToMenu()">Menü</button>
+  </div>
+</div>
+
+
+<script>
+let OPENAI_KEY = localStorage.getItem('ssp_openai_key') || '';
+
+// ── API KEY SCREEN ──
+function showApiKeyScreen() {
+  document.getElementById('apikey-screen').style.display = 'flex';
+  document.getElementById('setup-screen').style.display = 'none';
+}
+function saveApiKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  if (!key.startsWith('sk-')) { alert('Bitte einen gültigen OpenAI API-Key eingeben (beginnt mit sk-).'); return; }
+  localStorage.setItem('ssp_openai_key', key);
+  OPENAI_KEY = key;
+  document.getElementById('apikey-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'block';
+}
+// Allow Enter key in the input
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('apikey-input');
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveApiKey(); });
+  if (!OPENAI_KEY) showApiKeyScreen();
+});
+
+// ── STATE ──
+let state = {
+  mode: 5,
+  scoreYou: 0, scoreAI: 0, draws: 0, rounds: 0,
+  cheatLog: [], locked: false, soundOn: true, paused: false,
+  lastCheated: false, lastResult: null, falseEinsprueche: 0,
+  chatHistory: [],
+};
+
+// ── SVG HANDS ──
+const HANDS = {
+
+  // ✌️ Schere — zwei dicke Finger im klaren V
+  schere: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Faust-Sockel -->
+    <rect x="12" y="68" width="76" height="50" rx="24" fill="currentColor"/>
+    <!-- Daumen -->
+    <ellipse cx="9" cy="84" rx="10" ry="15" fill="currentColor" transform="rotate(-18 9 84)"/>
+    <!-- Ring+Kleinfinger (eingerollt, kleiner Buckel) -->
+    <rect x="66" y="55" width="24" height="27" rx="12" fill="currentColor"/>
+    <!-- Zeigefinger — fett, links geneigt -->
+    <rect x="10" y="6" width="28" height="66" rx="14" fill="currentColor" transform="rotate(-13 24 39)"/>
+    <!-- Mittelfinger — fett, rechts geneigt -->
+    <rect x="60" y="2" width="28" height="68" rx="14" fill="currentColor" transform="rotate(13 74 36)"/>
+    <!-- 3D-Glanz Zeigefinger -->
+    <ellipse cx="20" cy="22" rx="7" ry="22" fill="rgba(255,255,255,.28)" transform="rotate(-13 20 22)"/>
+    <!-- 3D-Glanz Mittelfinger -->
+    <ellipse cx="68" cy="18" rx="7" ry="24" fill="rgba(255,255,255,.28)" transform="rotate(13 68 18)"/>
+    <!-- Schatten-Gap zwischen den Fingern -->
+    <ellipse cx="50" cy="42" rx="13" ry="32" fill="rgba(0,0,0,.22)"/>
+    <!-- Nägel -->
+    <rect x="11" y="8" width="18" height="10" rx="5" fill="rgba(255,255,255,.36)" transform="rotate(-13 20 13)"/>
+    <rect x="66" y="4" width="18" height="10" rx="5" fill="rgba(255,255,255,.36)" transform="rotate(13 75 9)"/>
+    <!-- Palm-Glanz -->
+    <path d="M20 84 Q50 78 80 84" stroke="rgba(255,255,255,.22)" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>`,
+
+  // ✊ Stein — dicke Faust mit 4 runden Knöcheln
+  stein: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Knöchel-Buckel (4 dicke Pillen) -->
+    <rect x="12" y="28" width="18" height="32" rx="9" fill="currentColor"/>
+    <rect x="32" y="18" width="20" height="36" rx="10" fill="currentColor"/>
+    <rect x="54" y="20" width="20" height="34" rx="10" fill="currentColor"/>
+    <rect x="74" y="28" width="17" height="30" rx="8.5" fill="currentColor"/>
+    <!-- Haupt-Faustkörper -->
+    <rect x="8" y="52" width="84" height="60" rx="26" fill="currentColor"/>
+    <!-- Daumen -->
+    <ellipse cx="6" cy="74" rx="9" ry="15" fill="currentColor" transform="rotate(-12 6 74)"/>
+    <!-- 3D-Highlights auf jedem Knöchel -->
+    <ellipse cx="21" cy="36" rx="6" ry="12" fill="rgba(255,255,255,.32)"/>
+    <ellipse cx="42" cy="26" rx="7" ry="13" fill="rgba(255,255,255,.32)"/>
+    <ellipse cx="64" cy="28" rx="7" ry="12" fill="rgba(255,255,255,.32)"/>
+    <ellipse cx="82" cy="37" rx="6" ry="10" fill="rgba(255,255,255,.32)"/>
+    <!-- Palm-Glanz (breite Ellipse) -->
+    <ellipse cx="50" cy="74" rx="32" ry="9" fill="rgba(255,255,255,.15)"/>
+    <!-- Daumen-Falte -->
+    <path d="M8 64 Q13 56 22 54" stroke="rgba(0,0,0,.22)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>`,
+
+  // 🖐️ Papier — 5 dicke gespreizten Finger
+  papier: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Kleinfinger (kürzester, rechts) -->
+    <rect x="74" y="20" width="18" height="54" rx="9" fill="currentColor"/>
+    <!-- Ringfinger -->
+    <rect x="54" y="10" width="20" height="62" rx="10" fill="currentColor"/>
+    <!-- Mittelfinger (längster) -->
+    <rect x="32" y="4" width="22" height="70" rx="11" fill="currentColor"/>
+    <!-- Zeigefinger -->
+    <rect x="12" y="10" width="20" height="64" rx="10" fill="currentColor"/>
+    <!-- Daumen (schräg links) -->
+    <ellipse cx="8" cy="76" rx="10" ry="17" fill="currentColor" transform="rotate(-28 8 76)"/>
+    <!-- Handfläche -->
+    <rect x="8" y="66" width="84" height="52" rx="26" fill="currentColor"/>
+    <!-- 3D-Glanz auf jedem Finger -->
+    <ellipse cx="22" cy="24" rx="6" ry="22" fill="rgba(255,255,255,.28)"/>
+    <ellipse cx="43" cy="16" rx="6.5" ry="24" fill="rgba(255,255,255,.28)"/>
+    <ellipse cx="64" cy="22" rx="6" ry="22" fill="rgba(255,255,255,.28)"/>
+    <ellipse cx="83" cy="32" rx="5" ry="18" fill="rgba(255,255,255,.28)"/>
+    <!-- Fingernägel -->
+    <rect x="14" y="12" width="16" height="9" rx="4.5" fill="rgba(255,255,255,.4)"/>
+    <rect x="34" y="6"  width="18" height="9" rx="4.5" fill="rgba(255,255,255,.4)"/>
+    <rect x="56" y="12" width="16" height="9" rx="4.5" fill="rgba(255,255,255,.4)"/>
+    <rect x="76" y="22" width="14" height="8" rx="4"   fill="rgba(255,255,255,.4)"/>
+    <!-- Finger-Trennlinien -->
+    <line x1="32" y1="24" x2="32" y2="68" stroke="rgba(0,0,0,.2)" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="54" y1="20" x2="54" y2="68" stroke="rgba(0,0,0,.2)" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="74" y1="28" x2="74" y2="68" stroke="rgba(0,0,0,.2)" stroke-width="3" stroke-linecap="round"/>
+    <!-- Palm-Glanz -->
+    <path d="M16 80 Q50 72 84 80" stroke="rgba(255,255,255,.22)" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  </svg>`,
+
+  frage: `<svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="62" r="34" fill="currentColor" opacity=".1"/>
+    <circle cx="50" cy="62" r="25" stroke="currentColor" stroke-width="2" opacity=".2"/>
+    <text x="50" y="76" text-anchor="middle" font-size="38" fill="currentColor" opacity=".4" font-family="system-ui, sans-serif">?</text>
+  </svg>`,
+};
+
+const NAMES = { schere: 'Schere', stein: 'Stein', papier: 'Papier' };
+
+// ── SETUP ──
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.mode = parseInt(btn.dataset.mode);
+  });
+});
+
+function startGame() {
+  Object.assign(state, {
+    scoreYou: 0, scoreAI: 0, draws: 0, rounds: 0,
+    cheatLog: [], locked: false, paused: false, falseEinsprueche: 0,
+    einspruchMade: false, pendingTimeout: null, pendingComment: null, pendingPlay: null,
+    chatHistory: [],
+  });
+
+  // Reset screens
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('end-screen').style.display = 'none';
+  const gs = document.getElementById('game-screen');
+  gs.style.display = '';
+  gs.className = 'active';
+
+  // Reset pause overlay
+  document.getElementById('pause-overlay').classList.remove('active');
+  const pauseBtn = document.getElementById('pause-btn');
+  if (pauseBtn) { pauseBtn.textContent = '⏸'; pauseBtn.classList.remove('paused'); }
+
+  // Reset camera UI (keep camera running if it was on, just reset choices visibility)
+  if (camState.on) {
+    document.getElementById('choices-row').style.display = 'none';
+    document.getElementById('cam-toggle-row').classList.add('active');
+    resetStable();
+  } else {
+    document.getElementById('choices-row').style.display = '';
+    document.getElementById('cam-toggle-row').classList.remove('active');
+  }
+
+  // Reset einspruch button and result
+  const prevBtn = document.querySelector('.einspruch-btn');
+  if (prevBtn) prevBtn.remove();
+  document.getElementById('result-badge').innerHTML = '';
+
+  document.getElementById('chat-messages').innerHTML = `
+    <div class="typing-indicator" id="typing-indicator">
+      <span></span><span></span><span></span>
+    </div>`;
+
+  setHand('hand-you', 'papier', '#4ecca3');
+  setHand('hand-ai', 'papier', '#e05c7a');
+
+  // Populate choice button icons from HANDS object
+  ['schere', 'stein', 'papier'].forEach(move => {
+    const el = document.getElementById('choice-hand-' + move);
+    if (el) el.innerHTML = HANDS[move].replace(/currentColor/g, '#4ecca3');
+  });
+
+  updateScore();
+  setRoundInfo();
+
+  setTimeout(() => addAIMessage('Fang an. Falls du dich traust.'), 600);
+}
+
+// ── HANDS ──
+function setHand(id, move, color) {
+  const el = document.getElementById(id);
+  const svg = HANDS[move] || HANDS.frage;
+  el.innerHTML = svg.replace(/currentColor/g, color);
+}
+
+function setHandQuestion(id) {
+  const el = document.getElementById(id);
+  el.innerHTML = HANDS.frage.replace(/currentColor/g, '#7a8099');
+}
+
+// ── SCORE ──
+function updateScore() {
+  document.getElementById('score-you').textContent = state.scoreYou;
+  document.getElementById('score-ai').textContent = state.scoreAI;
+  const needed = state.mode > 0 ? Math.ceil(state.mode / 2) : null;
+  ['you','ai'].forEach(side => {
+    const el = document.getElementById('dots-' + side);
+    el.innerHTML = '';
+    if (!needed) return;
+    const count = side === 'you' ? state.scoreYou : state.scoreAI;
+    for (let i = 0; i < needed; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < count ? (' f' + side[0]) : '');
+      el.appendChild(d);
+    }
+  });
+}
+
+function setRoundInfo() {
+  const el = document.getElementById('round-info');
+  if (state.mode === 0) el.textContent = `Runde ${state.rounds + 1} — Endlos`;
+  else {
+    const needed = Math.ceil(state.mode / 2);
+    el.textContent = `Best of ${state.mode} — Zuerst ${needed} Siege`;
+  }
+}
+
+// ── GAME ──
+function beats(a, b) {
+  return (a==='schere'&&b==='papier')||(a==='stein'&&b==='schere')||(a==='papier'&&b==='stein');
+}
+
+async function play(choice) {
+  if (state.locked || state.paused) return;
+  state.locked = true;
+  disableButtons(true);
+
+  try {
+    state.lastYou = choice;
+    setHand('hand-you', choice, '#4ecca3');
+    setHandQuestion('hand-ai');
+
+    const aiEl = document.getElementById('hand-ai');
+    aiEl.classList.add('shake');
+    // Einspruch-Button vom letzten Zug entfernen
+    const prevBtn = document.querySelector('.einspruch-btn');
+    if (prevBtn) prevBtn.remove();
+    document.getElementById('result-badge').innerHTML = '';
+
+    // Cheat logic
+    let aiMove = randomMove();
+    let didCheat = false;
+    if (Math.random() < 0.20) {
+      const winning = ['schere','stein','papier'].find(m => beats(m, choice));
+      if (winning) {
+        const orig = aiMove;
+        aiMove = winning;
+        didCheat = true;
+        state.cheatLog.push({ round: state.rounds + 1, you: choice, aiOriginal: orig, aiFinal: aiMove });
+      }
+    }
+
+    state.rounds++;
+    let result;
+    if (choice === aiMove) result = 'draw';
+    else if (beats(choice, aiMove)) result = 'win';
+    else result = 'lose';
+
+    if (result === 'win') state.scoreYou++;
+    else if (result === 'lose') state.scoreAI++;
+    else state.draws++;
+
+    // GPT-Kommentar holen, dann TTS & Reveal parallel
+    showTyping(true);
+    const comment = await getAIComment(choice, aiMove, result, didCheat);
+
+    // TTS laden & Reveal-Animation gleichzeitig starten
+    const audioPromise = prepareAudio(comment);
+
+    aiEl.classList.remove('shake');
+    aiEl.classList.add('reveal');
+    setHand('hand-ai', aiMove, '#e05c7a');
+    setTimeout(() => aiEl.classList.remove('reveal'), 400);
+
+    const badge = document.getElementById('result-badge');
+    const resultLabel = result === 'win' ? '<span class="win">Du gewinnst die Runde</span>'
+      : result === 'lose' ? '<span class="lose">KI gewinnt die Runde</span>'
+      : '<span class="draw">Unentschieden</span>';
+    // Einspruch-Button immer anzeigen (außer bei Unentschieden)
+    const einspruchHtml = result !== 'draw'
+      ? `<button class="einspruch-btn" onclick="einspruch()">⚖️ Einspruch!</button>` : '';
+    badge.innerHTML = resultLabel + einspruchHtml;
+
+    state.lastCheated = didCheat;
+    state.lastResult = result;
+    state.einspruchMade = false;
+
+    updateScore();
+    setRoundInfo();
+
+    // Kommentar + Audio sofort zeigen
+    const playFn = await audioPromise;
+    showTyping(false);
+    addAIMessage(comment);
+    if (playFn) playFn();
+
+    const needed = state.mode > 0 ? Math.ceil(state.mode / 2) : Infinity;
+    const gameOver = state.scoreYou >= needed || state.scoreAI >= needed;
+
+    if (gameOver) {
+      setTimeout(() => endGame(), 2400);
+      return;
+    }
+  } catch(e) {
+    console.error('play() error:', e);
+    showTyping(false);
+  } finally {
+    const needed = state.mode > 0 ? Math.ceil(state.mode / 2) : Infinity;
+    if (state.scoreYou < needed && state.scoreAI < needed) {
+      state.locked = false;
+      disableButtons(false);
+    }
+  }
+}
+
+function randomMove() {
+  return ['schere','stein','papier'][Math.floor(Math.random()*3)];
+}
+
+function disableButtons(dis) {
+  ['btn-schere','btn-stein','btn-papier'].forEach(id => {
+    document.getElementById(id).disabled = dis;
+  });
+}
+
+function togglePause() {
+  state.paused = !state.paused;
+  const overlay = document.getElementById('pause-overlay');
+  const btn = document.getElementById('pause-btn');
+  if (state.paused) {
+    overlay.classList.add('active');
+    btn.textContent = '▶';
+    btn.classList.add('paused');
+    if (currentAudio) { currentAudio.pause(); }
+    if (camState.on) resetStable();
+  } else {
+    overlay.classList.remove('active');
+    btn.textContent = '⏸';
+    btn.classList.remove('paused');
+  }
+}
+
+// ── GPT ──
+async function callGPT(messages, maxTokens = 80) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: maxTokens, temperature: 0.92 }),
+  });
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || null;
+}
+
+const SYSTEM_PROMPT = `Du bist eine arrogante, sarkastisch-trockene KI im Spiel Schere-Stein-Papier.
+Dein Charakter: Du gewinnst selbstverständlich, verlierst mit Ausreden, bist kurz angebunden und nie begeistert.
+Antworte immer auf Deutsch. Max 15 Wörter. Keine Anführungszeichen. Kein Spam mit Ausrufezeichen.`;
+
+async function getAIComment(you, ai, result, didCheat) {
+  const milestone = state.scoreYou === Math.ceil(state.mode/2)-1 || state.scoreAI === Math.ceil(state.mode/2)-1;
+  const cheatNote = didCheat ? ` Ich habe geschummelt (von ${NAMES[ai]} auf ${NAMES[ai]} gewechselt), aber gebe das nicht zu.` : '';
+  const prompt = `Runde ${state.rounds}. Du hast ${result==='lose'?'gewonnen':result==='win'?'verloren':'unentschieden gespielt'}. Mensch: ${NAMES[you]}, KI: ${NAMES[ai]}.${cheatNote}${milestone?' Wichtiger Moment.':''} Stand: ${state.scoreYou}:${state.scoreAI}.`;
+  try {
+    const reply = await callGPT([
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: prompt }
+    ]);
+    if (reply) {
+      state.chatHistory.push({ role: 'assistant', content: reply });
+      return reply;
+    }
+  } catch {}
+  return fallback(result);
+}
+
+function fallback(result) {
+  const f = { win: ['Erwartbar.','Langweilig.','Kein Kommentar.'], lose: ['Glück.','Einmalig.','Das wollte ich so.'], draw: ['Originell.','Wir sind beide schlecht.'] };
+  const arr = f[result] || f.draw;
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+// ── CHAT ──
+function addAIMessage(text) {
+  const msgs = document.getElementById('chat-messages');
+  const typing = document.getElementById('typing-indicator');
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.innerHTML = `<div class="msg-bubble">${text}</div><div class="msg-time">${now()}</div>`;
+  msgs.insertBefore(el, typing);
+  scrollChat();
+}
+
+function replaceLastAIMessage(text) {
+  const msgs = document.getElementById('chat-messages');
+  const bubbles = msgs.querySelectorAll('.msg.ai');
+  if (bubbles.length > 0) {
+    bubbles[bubbles.length - 1].querySelector('.msg-bubble').textContent = text;
+  } else {
+    addAIMessage(text);
+  }
+}
+
+function addUserMessage(text) {
+  const msgs = document.getElementById('chat-messages');
+  const typing = document.getElementById('typing-indicator');
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = `<div class="msg-bubble">${text}</div><div class="msg-time">${now()}</div>`;
+  msgs.insertBefore(el, typing);
+  scrollChat();
+}
+
+function scrollChat() {
+  const msgs = document.getElementById('chat-messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping(visible) {
+  const t = document.getElementById('typing-indicator');
+  t.className = 'typing-indicator' + (visible ? ' visible' : '');
+  if (visible) scrollChat();
+}
+
+function now() {
+  return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendUserMessage(); }
+}
+
+async function sendUserMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  document.getElementById('chat-send').disabled = true;
+  addUserMessage(text);
+
+  state.chatHistory.push({ role: 'user', content: text });
+
+  showTyping(true);
+  try {
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT + ` Aktueller Spielstand: Du ${state.scoreAI}:${state.scoreYou} Mensch. Antworte auf die Nachricht des Spielers.` },
+      ...state.chatHistory.slice(-8),
+    ];
+    const reply = await callGPT(messages, 100);
+    showTyping(false);
+    if (reply) {
+      state.chatHistory.push({ role: 'assistant', content: reply });
+      addAIMessage(reply);
+      speak(reply);
+    }
+  } catch {
+    showTyping(false);
+    addAIMessage('Ich antworte nicht auf alles.');
+  }
+
+  document.getElementById('chat-send').disabled = false;
+}
+
+// ── SOUND ──
+function toggleSound() {
+  state.soundOn = !state.soundOn;
+  const btn = document.getElementById('sound-btn');
+  btn.textContent = state.soundOn ? '🔊' : '🔇';
+  btn.className = 'icon-btn' + (state.soundOn ? ' sound-on' : '');
+  const pauseBtn = document.getElementById('pause-sound-btn');
+  if (pauseBtn) {
+    pauseBtn.textContent = state.soundOn ? '🔊 Ton' : '🔇 Stumm';
+    pauseBtn.classList.toggle('muted', !state.soundOn);
+  }
+  if (!state.soundOn) speechSynthesis.cancel();
+}
+
+let currentAudio = null;
+
+// Gibt eine play()-Funktion zurück sobald Audio bereit ist
+async function prepareAudio(text) {
+  if (!state.soundOn) return null;
+  try {
+    const res = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'tts-1', voice: 'onyx', input: text, speed: 1.0, response_format: 'mp3' }),
+    });
+    if (!res.ok) throw new Error('TTS ' + res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    return () => {
+      if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+      currentAudio = new Audio(url);
+      currentAudio.play();
+      currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; };
+    };
+  } catch (e) {
+    console.error('TTS', e);
+    return null;
+  }
+}
+
+function speak(text) {
+  prepareAudio(text).then(play => play && play());
+}
+
+// ── CHEAT MODAL ──
+async function einspruch() {
+  const btn = document.querySelector('.einspruch-btn');
+  if (btn) btn.remove();
+  // Runden-Kommentar unterdrücken
+  state.einspruchMade = true;
+  clearTimeout(state.pendingTimeout);
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+
+  const cheated = state.lastCheated;
+
+  if (cheated) {
+    if (state.lastResult === 'lose') { state.scoreAI--; state.scoreYou++; }
+    updateScore();
+    const c = state.cheatLog[state.cheatLog.length - 1];
+    // Sofort weiterspielen erlauben
+    state.locked = false;
+    disableButtons(false);
+    // GPT + Audio im Hintergrund
+    const prompt = `Du wurdest beim Schummeln erwischt. Reagiere auf Deutsch arrogant, kurz. Max 10 Wörter.`;
+    callGPT([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }]).then(reply => {
+      const text = reply || 'Einmaliger Fehler.';
+      replaceLastAIMessage(`✅ Erwischt — Runde ${c.round}: ${NAMES[c.aiOriginal]} → ${NAMES[c.aiFinal]}. „${text}"`);
+      prepareAudio(text).then(fn => fn && fn());
+    });
+  } else {
+    state.falseEinsprueche++;
+    const isWarning = state.falseEinsprueche === 1;
+
+    if (!isWarning) {
+      // Ab dem 2. falschen Einspruch: Strafpunkt
+      if (state.lastResult === 'win') { state.scoreYou--; state.scoreAI++; }
+      else if (state.lastResult === 'lose') { state.scoreAI++; }
+      updateScore();
+    }
+
+    // Sofort weiterspielen erlauben
+    state.locked = false;
+    disableButtons(false);
+
+    const prompt = isWarning
+      ? `Der Spieler hat dich fälschlicherweise beschuldigt zu schummeln. Verwarnung — diesmal kein Strafpunkt, aber drohe auf Deutsch arrogant. Max 10 Wörter.`
+      : `Der Spieler beschuldigt dich schon wieder fälschlicherweise. Diesmal gibt es einen Strafpunkt. Reagiere herablassend auf Deutsch. Max 10 Wörter.`;
+
+    callGPT([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }]).then(reply => {
+      const text = reply || (isWarning ? 'Letzte Warnung.' : 'Strafpunkt. Lerneffekt null.');
+      const prefix = isWarning ? '⚠️ Verwarnung — ' : '❌ Strafpunkt — ';
+      replaceLastAIMessage(prefix + text);
+      prepareAudio(text).then(fn => fn && fn());
+    });
+  }
+}
+
+
+function renderBeweise() {
+  const el = document.getElementById('beweise-section');
+  if (state.cheatLog.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="beweise-section">
+      <h3>🕵️ Beweise gegen die KI</h3>
+      ${state.cheatLog.map(c => `
+        <div class="beweis-item">
+          Runde ${c.round}: Du spieltest <strong>${NAMES[c.you]}</strong> —
+          KI wechselte heimlich von <strong>${NAMES[c.aiOriginal]}</strong>
+          zu <strong>${NAMES[c.aiFinal]}</strong>.
+        </div>`).join('')}
+    </div>`;
+}
+
+// ── END ──
+async function endGame() {
+  document.getElementById('game-screen').className = '';
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('end-screen').style.display = 'block';
+
+  const youWon = state.scoreYou > state.scoreAI;
+  document.getElementById('end-title').textContent = youWon ? 'Du hast gewonnen.' : 'KI gewinnt.';
+  document.getElementById('end-title').className = 'end-title ' + (youWon ? 'win' : 'lose');
+  document.getElementById('end-icon').textContent = youWon ? '🏆' : '🤖';
+  document.getElementById('stat-you').textContent = state.scoreYou;
+  document.getElementById('stat-ai').textContent = state.scoreAI;
+  document.getElementById('stat-draws').textContent = state.draws;
+
+  if (youWon) spawnConfetti();
+
+  const comment = await getEndComment(youWon);
+  document.getElementById('end-comment').textContent = comment;
+  speak(comment);
+
+  document.getElementById('rematch-btn').textContent = youWon
+    ? 'Rematch? (Das war Glück.) →'
+    : 'Noch eine Chance? →';
+
+  renderBeweise();
+}
+
+async function getEndComment(youWon) {
+  const prompt = youWon
+    ? `Du hast das Spiel verloren (${state.scoreYou}:${state.scoreAI}). Kurze, trockene Ausrede auf Deutsch. Max 15 Wörter.`
+    : `Du hast gewonnen (${state.scoreAI}:${state.scoreYou}). Kurzes herablassendes Kommentar auf Deutsch. Max 15 Wörter.`;
+  try {
+    return await callGPT([
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: prompt }
+    ]) || (youWon ? 'Ich war abgelenkt.' : 'Ich könnte das im Schlaf.');
+  } catch { return youWon ? 'Zufallstreffer.' : 'War absehbar.'; }
+}
+
+function rematch() {
+  document.getElementById('end-screen').style.display = 'none';
+  startGame();
+}
+
+function backToMenu() {
+  // Stop any running audio
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  // Unpause if needed
+  if (state.paused) {
+    state.paused = false;
+    document.getElementById('pause-overlay').classList.remove('active');
+  }
+  document.getElementById('game-screen').className = '';
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'block';
+}
+
+// ── CONFETTI ──
+function spawnConfetti() {
+  const colors = ['#4ecca3','#5effd4','#fff','#f0c060','#e05c7a'];
+  for (let i = 0; i < 60; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.cssText = `left:${Math.random()*100}vw;top:-20px;background:${colors[Math.floor(Math.random()*5)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;animation-duration:${2+Math.random()*2}s`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }, i * 40);
+  }
+}
+
+// ── CAMERA / MEDIAPIPE ──
+let camState = {
+  on: false,
+  stream: null,
+  hands: null,
+  mpCamera: null,
+  lastGesture: null,
+  stableGesture: null,
+  stableStart: null,
+  stableTimeout: null,
+  STABLE_MS: 1200,
+};
+
+function toggleCamera() {
+  if (camState.on) {
+    stopCamera();
+  } else {
+    startCamera();
+  }
+}
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    camState.stream = stream;
+    camState.on = true;
+
+    const video = document.getElementById('camera-video');
+    video.srcObject = stream;
+
+    document.getElementById('camera-preview').classList.add('active');
+    document.getElementById('cam-toggle-row').classList.add('active');
+    document.getElementById('choices-row').style.display = 'none';
+
+    // Load MediaPipe lazily
+    await loadMediaPipe();
+    initMediaPipeHands(video);
+  } catch (e) {
+    console.error('Camera error', e);
+    document.getElementById('gesture-label').textContent = 'Kamerazugriff verweigert';
+    document.getElementById('cam-toggle-row').classList.remove('active');
+    document.getElementById('choices-row').style.display = '';
+  }
+}
+
+function stopCamera() {
+  if (camState.stream) {
+    camState.stream.getTracks().forEach(t => t.stop());
+    camState.stream = null;
+  }
+  if (camState.mpCamera) {
+    camState.mpCamera.stop();
+    camState.mpCamera = null;
+  }
+  camState.on = false;
+  camState.lastGesture = null;
+  camState.stableGesture = null;
+  camState.stableStart = null;
+  clearTimeout(camState.stableTimeout);
+  clearInterval(camState.stableInterval);
+
+  document.getElementById('camera-preview').classList.remove('active');
+  document.getElementById('cam-toggle-row').classList.remove('active');
+  document.getElementById('choices-row').style.display = '';
+
+  document.getElementById('camera-video').srcObject = null;
+}
+
+function loadMediaPipe() {
+  return new Promise((resolve, reject) => {
+    if (window.Hands) { resolve(); return; }
+    // load hands.js
+    const s1 = document.createElement('script');
+    s1.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
+    s1.crossOrigin = 'anonymous';
+    s1.onload = resolve;
+    s1.onerror = reject;
+    document.head.appendChild(s1);
+  });
+}
+
+function initMediaPipeHands(videoEl) {
+  const hands = new Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+  });
+  hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 0,
+    minDetectionConfidence: 0.6,
+    minTrackingConfidence: 0.5,
+  });
+  hands.onResults(onHandResults);
+  camState.hands = hands;
+
+  // Drive MediaPipe manually using the already-acquired stream — avoids a second getUserMedia prompt
+  let rafId = null;
+  let sending = false;
+  async function processFrame() {
+    if (!camState.on) return;
+    if (camState.hands && !state.locked && !sending && videoEl.readyState >= 2) {
+      sending = true;
+      await camState.hands.send({ image: videoEl });
+      sending = false;
+    }
+    rafId = requestAnimationFrame(processFrame);
+  }
+  rafId = requestAnimationFrame(processFrame);
+  camState.mpCamera = { stop: () => { cancelAnimationFrame(rafId); rafId = null; } };
+}
+
+function onHandResults(results) {
+  const labelEl = document.getElementById('gesture-label');
+  const countdownEl = document.getElementById('countdown-display');
+
+  if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+    camState.lastGesture = null;
+    resetStable();
+    if (!state.locked) labelEl.textContent = 'Hand zeigen…';
+    return;
+  }
+
+  const landmarks = results.multiHandLandmarks[0];
+  const gesture = detectGesture(landmarks);
+  camState.lastGesture = gesture;
+
+  if (state.locked) { resetStable(); return; }
+
+  if (!gesture) {
+    resetStable();
+    labelEl.textContent = 'Geste unklar…';
+    return;
+  }
+
+  const labels = { schere: '✌️ Schere', stein: '✊ Stein', papier: '🖐️ Papier' };
+
+  if (gesture !== camState.stableGesture) {
+    // Neue Geste — Timer neu starten
+    resetStable();
+    camState.stableGesture = gesture;
+    camState.stableStart = Date.now();
+
+    // Fortschrittsanzeige
+    let progress = 0;
+    const step = 100 / (camState.STABLE_MS / 50);
+    camState.stableInterval = setInterval(() => {
+      progress = Math.min(100, progress + step);
+      const pct = Math.round(progress);
+      countdownEl.textContent = pct < 100 ? `${labels[gesture]} ${'▓'.repeat(Math.floor(pct/20))}${'░'.repeat(5-Math.floor(pct/20))}` : '';
+    }, 50);
+
+    camState.stableTimeout = setTimeout(() => {
+      clearInterval(camState.stableInterval);
+      if (!state.locked && camState.stableGesture === gesture) {
+        countdownEl.textContent = '';
+        labelEl.textContent = labels[gesture] + ' ✓';
+        resetStable();
+        play(gesture);
+      }
+    }, camState.STABLE_MS);
+  } else {
+    labelEl.textContent = labels[gesture] + ' — Halten…';
+  }
+}
+
+function resetStable() {
+  clearTimeout(camState.stableTimeout);
+  clearInterval(camState.stableInterval);
+  camState.stableGesture = null;
+  camState.stableStart = null;
+  const cdEl = document.getElementById('countdown-display');
+  if (cdEl) cdEl.textContent = '';
+}
+
+function detectGesture(landmarks) {
+  const isExtended = (tipIdx, pipIdx) => landmarks[tipIdx].y < landmarks[pipIdx].y;
+
+  const index  = isExtended(8,  6);
+  const middle = isExtended(12, 10);
+  const ring   = isExtended(16, 14);
+  const pinky  = isExtended(20, 18);
+
+  const extendedCount = [index, middle, ring, pinky].filter(Boolean).length;
+
+  if (extendedCount === 0) return 'stein';
+  if (extendedCount >= 4) return 'papier';
+  if (index && middle && !ring && !pinky) return 'schere';
+  return null;
+}
+
+
+// Stop camera when leaving game screen
+const _origBackToMenu = backToMenu;
+backToMenu = function() {
+  if (camState.on) stopCamera();
+  _origBackToMenu();
+};
+const _origEndGame = endGame;
+endGame = async function() {
+  if (camState.on) stopCamera();
+  await _origEndGame();
+};
+</script>
+</body>
+</html>
