@@ -872,19 +872,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pvp-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') createPvpRoom(); });
   document.getElementById('join-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') joinPvpRoom(); });
 
-  // Check if Vercel proxy has a key configured
-  fetch('/api/config').then(r => r.ok ? r.json() : null).then(data => {
-    if (data && data.configured) useProxy = true;
-  }).catch(() => {});
-
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get('room');
-  if (roomId) {
-    showJoinScreen(roomId);
-  } else if (!OPENAI_KEY) {
-    // Check proxy before showing key screen (slight delay for fetch)
-    setTimeout(() => { if (!useProxy) showApiKeyScreen(); }, 300);
-  }
+
+  // Check if Vercel proxy has a key, then decide what to show
+  fetch('/api/config')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (data && data.configured) useProxy = true;
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (roomId) {
+        showJoinScreen(roomId);
+      } else if (!useProxy && !OPENAI_KEY) {
+        showApiKeyScreen();
+      }
+    });
 });
 
 // ── GAME TYPE ──
