@@ -809,10 +809,20 @@ let useProxy = false; // set to true on Vercel where OPENAI_KEY env var is confi
 let firebaseApp = null;
 let db = null;
 
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCSq3S5z2m4dYFw-Fivi-_zKNNwXxxvP08",
+  authDomain: "schere-stein-papier-fa6d7.firebaseapp.com",
+  databaseURL: "https://schere-stein-papier-fa6d7-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "schere-stein-papier-fa6d7",
+  storageBucket: "schere-stein-papier-fa6d7.firebasestorage.app",
+  messagingSenderId: "745191364988",
+  appId: "1:745191364988:web:4c0660641a57c0b7f92cf9"
+};
+
 function getFirebaseConfig() {
   const raw = localStorage.getItem('ssp_firebase_config');
-  if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  if (raw) { try { return JSON.parse(raw); } catch {} }
+  return DEFAULT_FIREBASE_CONFIG;
 }
 
 function initFirebase() {
